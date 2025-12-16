@@ -1,0 +1,29 @@
+[project]
+name = "gexport"
+version = "0.1.0"
+dependencies = [
+  "PyGObject",
+  "ipython",
+  "pydantic",
+  "pyyaml",
+  "rich",
+]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+
+[tool.poetry.scripts]
+gexport = "gexport.__main__:main"
+
+[tool.pyright]
+stubPath = "typings"
+
+[tool.ruff]
+line-length = 80
+
+[tool.ruff.format]
+quote-style = "single"
