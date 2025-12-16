@@ -1,6 +1,6 @@
 # gexport
 
-**Makefile-like export tool for GIMP**
+**Make-like export tool for GIMP**
 
 Write a simple YAML file that tells `gexport` how to export, scale and crop
 multiple images from your complex GIMP projects.
