@@ -24,7 +24,7 @@ $ cd /path/to/project
 $ gexport json-schema > gexport-schema.json
 ```
 
-Create an empty gexport YAML file
+Create a file called `gexport.yaml`
 
 ```yaml
 # yaml-language-server: $schema=./gexport-schema.json
