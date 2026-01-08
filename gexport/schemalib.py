@@ -193,7 +193,7 @@ class Group(DefaultsMixin, SupportsParent):
 class Export(DefaultsMixin, SupportsParent):
     def __init__(
         self,
-        parent: SupportsParent,
+        parent: 'XCF',
         path: Path,
         default_action: Action | None = None,
         default_crop: Crop | None = None,
@@ -207,8 +207,15 @@ class Export(DefaultsMixin, SupportsParent):
             default_mask,
             default_resize,
         )
-        self.path: Final = path
+        self.xcf: Final = parent
+        self._path: Final = path
         self.root: Final = Group(self, default_action=default_action)
+
+    @property
+    def path(self) -> Path:
+        return self._path.with_stem(
+            self._path.stem.replace('$stem', self.xcf.path.stem),
+        )
 
     @property
     def crop(self) -> Crop | None:
