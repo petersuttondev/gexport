@@ -16,6 +16,21 @@ class Action(Enum):
     LEAVE = auto()
 
 
+class Crop(ABC):
+    pass
+
+
+@final
+class CropBoundingBox(Crop):
+    pass
+
+
+@final
+class CropLayer(Crop):
+    def __init__(self, name: str) -> None:
+        self.name: Final = name
+
+
 @final
 @dataclass(frozen=True, slots=True)
 class Scale:
@@ -39,6 +54,9 @@ type Resize = Scale | WidthHeight
 class SupportsParent(Protocol):
     @property
     def default_action(self) -> Action: ...
+
+    @property
+    def default_crop(self) -> Crop | None: ...
 
     @property
     def default_mask(self) -> Action: ...
@@ -69,29 +87,29 @@ class Layer:
     def mask(self) -> Action:
         return self._mask or self.parent.default_mask
 
-    @property
-    def resize(self) -> Resize | None:
-        return (
-            self.parent.default_resize if self._resize is None else self._resize
-        )
-
 
 class DefaultsMixin(SupportsParent):
     def __init__(
         self,
         parent: SupportsParent,
         default_action: Action | None = None,
+        default_crop: Crop | None = None,
         default_mask: Action | None = None,
         default_resize: Resize | None = None,
     ) -> None:
         self.parent = parent
         self._default_action = default_action
+        self._default_crop = default_crop
         self._default_mask = default_mask
         self._default_resize = default_resize
 
     @property
     def default_action(self) -> Action:
         return self._default_action or self.parent.default_action
+
+    @property
+    def default_crop(self) -> Crop | None:
+        return self._default_crop or self.parent.default_crop
 
     @property
     def default_mask(self) -> Action:
@@ -112,10 +130,17 @@ class Group(DefaultsMixin, SupportsParent):
         self,
         parent: SupportsParent,
         default_action: Action | None = None,
+        default_crop: Crop | None = None,
         default_mask: Action | None = None,
         default_resize: Resize | None = None,
     ) -> None:
-        super().__init__(parent, default_action, default_mask, default_resize)
+        super().__init__(
+            parent,
+            default_action,
+            default_crop,
+            default_mask,
+            default_resize,
+        )
         self._default_layer: Final = Layer(self)
         self.layers: Final[dict[str, Layer]] = {}
         self.groups: Final[dict[str, Group]] = {}
@@ -133,6 +158,7 @@ class Group(DefaultsMixin, SupportsParent):
         self,
         name: str,
         default_action: Action | None = None,
+        default_crop: Crop | None = None,
         default_mask: Action | None = None,
         default_resize: Resize | None = None,
     ) -> 'Group':
@@ -144,6 +170,7 @@ class Group(DefaultsMixin, SupportsParent):
         group = Group(
             self,
             default_action=default_action,
+            default_crop=default_crop,
             default_mask=default_mask,
             default_resize=default_resize,
         )
@@ -162,41 +189,34 @@ class Group(DefaultsMixin, SupportsParent):
             return self.layers.get(head, self._default_layer)
 
 
-class Crop(ABC):
-    pass
-
-
-@final
-class CropBoundingBox(Crop):
-    pass
-
-
-@final
-class CropLayer(Crop):
-    def __init__(self, name: str) -> None:
-        self.name: Final = name
-
-
 @final
 class Export(DefaultsMixin, SupportsParent):
     def __init__(
         self,
         parent: SupportsParent,
         path: Path,
-        crop: Crop | None = None,
         default_action: Action | None = None,
+        default_crop: Crop | None = None,
         default_mask: Action | None = None,
         default_resize: Resize | None = None,
     ) -> None:
-        super().__init__(parent, default_action, default_mask, default_resize)
+        super().__init__(
+            parent,
+            default_action,
+            default_crop,
+            default_mask,
+            default_resize,
+        )
         self.path: Final = path
-        self.crop: Final = crop
         self.root: Final = Group(self, default_action=default_action)
 
     @property
+    def crop(self) -> Crop | None:
+        return self.default_crop
+
+    @property
     def resize(self) -> Resize | None:
-        resize = self.default_resize
-        return self.parent.default_resize if resize is None else resize
+        return self.default_resize
 
     def add_layer(
         self,
@@ -221,26 +241,33 @@ class XCF(DefaultsMixin, SupportsParent):
         parent: SupportsParent,
         path: Path,
         default_action: Action | None = None,
+        default_crop: Crop | None = None,
         default_mask: Action | None = None,
         default_resize: Resize | None = None,
     ) -> None:
-        super().__init__(parent, default_action, default_mask, default_resize)
+        super().__init__(
+            parent,
+            default_action,
+            default_crop,
+            default_mask,
+            default_resize,
+        )
         self.path = path
         self.exports: dict[Path, Export] = {}
 
     def add_export(
         self,
         path: Path,
-        crop: Crop | None = None,
         default_action: Action | None = None,
+        default_crop: Crop | None = None,
         default_mask: Action | None = None,
         default_resize: Resize | None = None,
     ) -> Export:
         asset = Export(
             self,
             path,
-            crop=crop,
             default_action=default_action,
+            default_crop=default_crop,
             default_mask=default_mask,
             default_resize=default_resize,
         )
@@ -255,10 +282,12 @@ class Schema:
         self,
         database_path: Path,
         default_action: Action = Action.LEAVE,
+        default_crop: Crop | None = None,
         default_mask: Action = Action.LEAVE,
         default_resize: Resize | None = None,
     ) -> None:
         self.database_path = database_path
+        self.default_crop = default_crop
         self.default_action = default_action
         self.default_mask = default_mask
         self.default_resize = default_resize
@@ -268,6 +297,7 @@ class Schema:
         self,
         path: Path,
         default_action: Action | None = None,
+        default_crop: Crop | None = None,
         default_mask: Action | None = None,
         default_resize: Resize | None = None,
     ) -> XCF:
@@ -275,6 +305,7 @@ class Schema:
             self,
             path,
             default_action=default_action,
+            default_crop=default_crop,
             default_mask=default_mask,
             default_resize=default_resize,
         )
@@ -334,6 +365,18 @@ def add_actions_from_model(
             pass
 
 
+def create_crop_from_model(
+    model: models.CropAlgorithm | str | None,
+) -> Crop | None:
+    match model:
+        case models.CropAlgorithm():
+            return CropBoundingBox()
+        case str() as name:
+            return CropLayer(name)
+        case None:
+            return None
+
+
 def create_resize_from_model(
     model: models.WidthHeight | float | None,
 ) -> Resize | None:
@@ -352,20 +395,10 @@ def add_export_from_model(
     export_path: Path,
     export_model: models.Export,
 ) -> Export:
-    crop: Crop | None
-
-    match export_model.crop:
-        case models.CropAlgorithem():
-            crop = CropBoundingBox()
-        case str() as name:
-            crop = CropLayer(name)
-        case None:
-            crop = None
-
     export = xcf.add_export(
         root_dir / export_path,
-        crop=crop,
         default_action=create_action_from_model(export_model.default),
+        default_crop=create_crop_from_model(export_model.crop),
         default_resize=create_resize_from_model(export_model.resize),
     )
 
@@ -387,9 +420,19 @@ def add_xcf_from_model(
         default_resize=create_resize_from_model(xcf_model.resize),
     )
 
-    if xcf_model.exports is not None:
-        for export_path, export_model in xcf_model.exports.items():
-            add_export_from_model(root_dir, xcf, export_path, export_model)
+    exports_model = xcf_model.exports
+
+    match exports_model:
+        case dict():
+            for export_path, export_model in exports_model.items():
+                add_export_from_model(root_dir, xcf, export_path, export_model)
+        case list():
+            for export_path in exports_model:
+                xcf.add_export(root_dir / export_path)
+        case Path():
+            xcf.add_export(root_dir / exports_model)
+        case None:
+            pass
 
     return xcf
 
@@ -402,6 +445,7 @@ def create_schema_from_model(
 
     schema = Schema(
         root_dir / schema_model.database,
+        default_crop=create_crop_from_model(schema_model.crop),
         default_resize=create_resize_from_model(schema_model.resize),
     )
 

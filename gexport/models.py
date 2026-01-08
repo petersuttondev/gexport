@@ -23,52 +23,59 @@ class Layer(BaseModel):
 
 @final
 class Group(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     group: str
     default: Action | None = None
     show: 'list[Group | Layer | str] | Group | Layer | str | None' = None
     hide: 'list[Group | Layer | str] | Group | Layer | str | None' = None
     leave: 'list[Group | Layer | str] | Group | Layer | str | None' = None
-    model_config = ConfigDict(extra='forbid')
 
 
 @final
-class CropAlgorithem(BaseModel):
-    algorithm: Literal['bounding-box']
+class CropAlgorithm(BaseModel):
     model_config = ConfigDict(extra='forbid')
+
+    algorithm: Literal['bounding-box']
 
 
 @final
 class WidthHeight(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     width: int | None = None
     height: int | None = None
-    model_config = ConfigDict(extra='forbid')
 
 
 @final
 class Export(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     default: Action | None = None
-    crop: CropAlgorithem | str | None = None
+    crop: CropAlgorithm | str | None = None
     resize: WidthHeight | float | None = None
     show: list[Group | Layer | str] | Group | Layer | str | None = None
     hide: list[Group | Layer | str] | Group | Layer | str | None = None
     leave: list[Group | Layer | str] | Group | Layer | str | None = None
-    model_config = ConfigDict(extra='forbid')
 
 
 @final
 class XCF(BaseModel):
-    default: Action | None = None
-    exports: dict[Path, Export] | None = None
-    resize: WidthHeight | float | None = None
     model_config = ConfigDict(extra='forbid')
+
+    default: Action | None = None
+    exports: dict[Path, Export] | list[Path] | Path | None = None
+    resize: WidthHeight | float | None = None
 
 
 @final
 class Schema(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
     database: Path
+    crop: CropAlgorithm | str | None = None
     resize: WidthHeight | float | None = None
     xcfs: dict[Path, XCF] | None = None
-    model_config = ConfigDict(extra='forbid')
 
 
 def load_schema(path: Path) -> Schema:
