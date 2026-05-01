@@ -45,6 +45,7 @@ class WidthHeight(BaseModel):
 
     width: int | None = None
     height: int | None = None
+    allow_scale_up: bool | None = None
 
 
 @final

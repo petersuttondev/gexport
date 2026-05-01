@@ -174,7 +174,7 @@ def create_export(image: Gimp.Image, export: Export) -> ExportMetadata:
                 f'Scaled to {image.get_width()}x{image.get_height()}+{offsets[0]}+{offsets[1]} (x{factor})'
             )
 
-        case WidthHeight(width, height):
+        case WidthHeight(width, height, allow_scale_up):
             assert width is not None or height is not None
             if width is None:
                 x_factor = y_factor = height / image.get_height()
@@ -185,15 +185,16 @@ def create_export(image: Gimp.Image, export: Export) -> ExportMetadata:
             else:
                 x_factor = width / image.get_width()
                 y_factor = height / image.get_height()
-            if not image.scale(width, height):
-                raise RuntimeError('Resize failed')
-            offsets = (
-                round(x_factor * offsets[0]),
-                round(y_factor * offsets[1]),
-            )
-            print(
-                f'Scaled to {image.get_width()}x{image.get_height()}+{offsets[0]}+{offsets[1]} ({x_factor}, {y_factor})',
-            )
+            if (x_factor < 1 and y_factor < 1) or allow_scale_up:
+                if not image.scale(width, height):
+                    raise RuntimeError('Resize failed')
+                offsets = (
+                    round(x_factor * offsets[0]),
+                    round(y_factor * offsets[1]),
+                )
+                print(
+                    f'Scaled to {image.get_width()}x{image.get_height()}+{offsets[0]}+{offsets[1]} ({x_factor}, {y_factor})',
+                )
 
     metadata = ExportMetadata(
         width=image.get_width(),

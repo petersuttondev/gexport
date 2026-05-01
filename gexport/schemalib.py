@@ -42,6 +42,7 @@ class Scale:
 class WidthHeight:
     width: int | None = None
     height: int | None = None
+    allow_scale_up: bool = False
 
     def __post_init__(self) -> None:
         if self.width is None and self.height is None:
@@ -390,8 +391,14 @@ def create_resize_from_model(
     match model:
         case float():
             return Scale(model)
-        case models.WidthHeight(width=width, height=height):
-            return WidthHeight(width, height)
+        case models.WidthHeight(
+            width=width,
+            height=height,
+            allow_scale_up=allow_scale_up,
+        ):
+            return WidthHeight(
+                width, height, allow_scale_up=allow_scale_up or False
+            )
         case None:
             return None
 

@@ -55,6 +55,14 @@ project-a.png project-b.png
 ```
 
 ## Documentation
+This describes the structure of gexport's YAML schema
+All paths are relative to
+
+Top-level
+
+| Key      | Type   | Required | Description |
+|----------|--------|----------|-------------|
+| database | string | Yes      | Path to a SQLite database where gexport should save export metadata |
 
 ```yaml
 # yaml-language-server: $schema=./gexport-schema.json
