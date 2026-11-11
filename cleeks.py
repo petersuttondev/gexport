@@ -2,13 +2,13 @@ from typing import TYPE_CHECKING
 
 from cleek import task
 
-
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from pathlib import Path
 
 
 # -- Tasks ---------------------------------------------------------------------
+
 
 @task
 def clean(dry_run: bool = False) -> None:

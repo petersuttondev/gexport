@@ -1,3 +1,8 @@
+import json
+import os
+import re
+import subprocess
+import sys
 from argparse import (
     Action,
     ArgumentParser,
@@ -8,12 +13,7 @@ from argparse import (
 from collections import ChainMap
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-import json
-import os
 from pathlib import Path
-import re
-import subprocess
-import sys
 from tempfile import NamedTemporaryFile
 from typing import Final, NoReturn, final
 
@@ -110,7 +110,7 @@ def _make_dump_args(ns: Namespace) -> DumpArguments:
 def _add_export_parser(subparsers: Subparsers, name: str) -> None:
     parser = subparsers.add_parser(name)
     _add_schema_argument(parser)
-    parser.add_argument('-i', '--interface', action='store_true', default=True)
+    parser.add_argument('-i', '--interface', action='store_true', default=False)
     parser.add_argument(
         '-I',
         '--no-interface',
