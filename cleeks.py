@@ -25,12 +25,13 @@ def clean(dry_run: bool = False) -> None:
 
 
 @task
-def install() -> None:
+def install(break_system_packages: bool = False) -> None:
     import subprocess
 
     subprocess.run(
         _args(
             ('pip', 'install'),
+            ('--break-system-packages',) if break_system_packages else (),
             ('--config-settings', 'editable_mode=strict'),
             ('--editable', '.'),
         ),

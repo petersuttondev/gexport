@@ -3,7 +3,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum, auto, unique
 from pathlib import Path
-from typing import Final, Protocol, final
+from typing import Final, Protocol, final, override
 
 from gexport import models
 
@@ -39,6 +39,12 @@ class Scale:
 
 @final
 @dataclass(frozen=True, slots=True)
+class ScaleFrom:
+    id: str
+
+
+@final
+@dataclass(frozen=True, slots=True)
 class WidthHeight:
     width: int | None = None
     height: int | None = None
@@ -49,7 +55,7 @@ class WidthHeight:
             raise ValueError('Either width or height must be given.')
 
 
-type Resize = Scale | WidthHeight
+type Resize = Scale | ScaleFrom | WidthHeight
 
 
 class SupportsParent(Protocol):
@@ -98,25 +104,29 @@ class DefaultsMixin(SupportsParent):
         default_mask: Action | None = None,
         default_resize: Resize | None = None,
     ) -> None:
-        self.parent = parent
-        self._default_action = default_action
-        self._default_crop = default_crop
-        self._default_mask = default_mask
-        self._default_resize = default_resize
+        self.parent: Final = parent
+        self._default_action: Final = default_action
+        self._default_crop: Final = default_crop
+        self._default_mask: Final = default_mask
+        self._default_resize: Final = default_resize
 
     @property
+    @override
     def default_action(self) -> Action:
         return self._default_action or self.parent.default_action
 
     @property
+    @override
     def default_crop(self) -> Crop | None:
         return self._default_crop or self.parent.default_crop
 
     @property
+    @override
     def default_mask(self) -> Action:
         return self._default_mask or self.parent.default_mask
 
     @property
+    @override
     def default_resize(self) -> Resize | None:
         return (
             self.parent.default_resize
@@ -196,6 +206,7 @@ class Export(DefaultsMixin, SupportsParent):
         self,
         parent: 'XCF',
         path: Path,
+        id: str | None = None,
         default_action: Action | None = None,
         default_crop: Crop | None = None,
         default_mask: Action | None = None,
@@ -210,13 +221,13 @@ class Export(DefaultsMixin, SupportsParent):
         )
         self.xcf: Final = parent
         self._path: Final = path
+        self.id: Final = id
         self.root: Final = Group(self, default_action=default_action)
 
     @property
     def path(self) -> Path:
-        return self._path.with_stem(
-            self._path.stem.replace('$stem', self.xcf.path.stem),
-        )
+        stem = self._path.stem.replace('$stem', self.xcf.path.stem)
+        return self._path.with_stem(stem)
 
     @property
     def crop(self) -> Crop | None:
@@ -266,22 +277,24 @@ class XCF(DefaultsMixin, SupportsParent):
     def add_export(
         self,
         path: Path,
+        id: str | None = None,
         default_action: Action | None = None,
         default_crop: Crop | None = None,
         default_mask: Action | None = None,
         default_resize: Resize | None = None,
     ) -> Export:
-        asset = Export(
+        export = Export(
             self,
             path,
+            id=id,
             default_action=default_action,
             default_crop=default_crop,
             default_mask=default_mask,
             default_resize=default_resize,
         )
 
-        self.exports[path] = asset
-        return asset
+        self.exports[path] = export
+        return export
 
 
 @final
@@ -319,6 +332,13 @@ class Schema:
         )
         self.xcfs[xcf.path] = xcf
         return xcf
+
+    def get_export_by_id(self, id_: str) -> Export:
+        for xcf in self.xcfs.values():
+            for export in xcf.exports.values():
+                if export.id == id_:
+                    return export
+        raise ValueError(f'No export with ID {id_!r}')
 
 
 def create_action_from_model(
@@ -386,21 +406,37 @@ def create_crop_from_model(
 
 
 def create_resize_from_model(
-    model: models.WidthHeight | float | None,
+    model: models.ScaleFrom | models.WidthHeight | float | None,
 ) -> Resize | None:
     match model:
-        case float():
-            return Scale(model)
+        case models.ScaleFrom(scale_from=id_):
+            return ScaleFrom(id_)
         case models.WidthHeight(
             width=width,
             height=height,
             allow_scale_up=allow_scale_up,
         ):
             return WidthHeight(
-                width, height, allow_scale_up=allow_scale_up or False
+                width,
+                height,
+                allow_scale_up=allow_scale_up or False,
             )
+        case float():
+            return Scale(model)
+        case int():
+            raise TypeError
         case None:
             return None
+
+
+def _expand_export_path(
+    root_dir: Path, xcf_path: Path, export_path: Path
+) -> Path:
+    return (
+        Path(xcf_path.parent, *export_path.parts[1:])
+        if export_path.parts[0] == '$parent'
+        else root_dir / export_path
+    )
 
 
 def add_export_from_model(
@@ -410,7 +446,8 @@ def add_export_from_model(
     export_model: models.Export,
 ) -> Export:
     export = xcf.add_export(
-        root_dir / export_path,
+        _expand_export_path(root_dir, xcf.path, export_path),
+        id=export_model.id,
         default_action=create_action_from_model(export_model.default),
         default_crop=create_crop_from_model(export_model.crop),
         default_resize=create_resize_from_model(export_model.resize),
@@ -436,15 +473,18 @@ def add_xcf_from_model(
 
     exports_model = xcf_model.exports
 
+    def add_export_from_path(export_path: Path) -> None:
+        xcf.add_export(_expand_export_path(root_dir, xcf.path, export_path))
+
     match exports_model:
         case dict():
             for export_path, export_model in exports_model.items():
                 add_export_from_model(root_dir, xcf, export_path, export_model)
         case list():
             for export_path in exports_model:
-                xcf.add_export(root_dir / export_path)
-        case Path():
-            xcf.add_export(root_dir / exports_model)
+                add_export_from_path(export_path)
+        case Path() as export_path:
+            add_export_from_path(export_path)
         case None:
             pass
 
@@ -471,4 +511,12 @@ def create_schema_from_model(
 
 
 def load_schema(path: Path) -> Schema:
-    return create_schema_from_model(path, models.load_schema(path))
+    schema = create_schema_from_model(path, models.load_schema(path))
+    export_ids: set[str] = set()
+    for xcf in schema.xcfs.values():
+        for export in xcf.exports.values():
+            if export.id is not None:
+                if export.id in export_ids:
+                    raise ValueError(f'Duplicate export ID {export.id!r}')
+                export_ids.add(export.id)
+    return schema

@@ -1,9 +1,10 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 from typing import TypedDict, final
 
-import yaml
 import gi
+import yaml
+
 gi.require_version('Gimp', '3.0')
 from gi.repository import Gimp
 

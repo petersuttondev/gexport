@@ -8,14 +8,13 @@ from argparse import (
     ArgumentParser,
     ArgumentTypeError,
     Namespace,
-    _SubParsersAction,
 )
 from collections import ChainMap
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Final, NoReturn, final
+from typing import TYPE_CHECKING, Final, NoReturn, cast, final
 
 from gexport import models
 from gexport.databaselib import open_database
@@ -25,6 +24,9 @@ from gexport.util import (
     check_str_list,
     suppress_unhandled,
 )
+
+if TYPE_CHECKING:
+    from argparse import _SubParsersAction  # pyright: ignore[reportPrivateUsage]
 
 
 @final
@@ -104,7 +106,7 @@ def _add_dump_parser(subparsers: Subparsers, name: str) -> None:
 
 
 def _make_dump_args(ns: Namespace) -> DumpArguments:
-    return DumpArguments(xcf_path=check_path(ns.xcf_path))
+    return DumpArguments(xcf_path=check_path(ns.xcf_path))  # pyright: ignore[reportAny]
 
 
 def _add_export_parser(subparsers: Subparsers, name: str) -> None:
@@ -123,10 +125,10 @@ def _add_export_parser(subparsers: Subparsers, name: str) -> None:
 
 def _make_export_args(ns: Namespace) -> ExportArguments:
     return ExportArguments(
-        interface=check_bool(ns.interface),
-        schema_path=check_path(ns.schema_path),
-        substrings=tuple(check_str_list(ns.substrings)),
-        view=check_bool(ns.view),
+        interface=check_bool(ns.interface),  # pyright: ignore[reportAny]
+        schema_path=check_path(ns.schema_path),  # pyright: ignore[reportAny]
+        substrings=tuple(check_str_list(ns.substrings)),  # pyright: ignore[reportAny]
+        view=check_bool(ns.view),  # pyright: ignore[reportAny]
     )
 
 
@@ -193,22 +195,22 @@ def _add_metadata_parser(subparsers: Subparsers, name: str) -> None:
 
 
 def _make_metadata_args(ns: Namespace) -> MetadataArguments:
-    if ns.database_path is None:
-        schema_path = check_path(ns.schema_path).resolve(strict=True)
+    if ns.database_path is None:  # pyright: ignore[reportAny]
+        schema_path = check_path(ns.schema_path).resolve(strict=True)  # pyright: ignore[reportAny]
         database_path = (
             schema_path.parent / models.load_schema(schema_path).database
         )
     else:
-        database_path = check_path(ns.database_path)
+        database_path = check_path(ns.database_path)  # pyright: ignore[reportAny]
 
-    origin: object = ns.origin
+    origin: object = ns.origin  # pyright: ignore[reportAny]
     assert origin is None or isinstance(origin, (AutoOrigin, XYOrigin))
 
     return MetadataArguments(
-        clean=check_bool(ns.clean),
+        clean=check_bool(ns.clean),  # pyright: ignore[reportAny]
         database_path=database_path,
         origin=origin,
-        substrings=tuple(check_str_list(ns.substrings)),
+        substrings=tuple(check_str_list(ns.substrings)),  # pyright: ignore[reportAny]
     )
 
 
@@ -218,7 +220,7 @@ def _add_shell_parser(subparsers: Subparsers, name: str) -> None:
 
 
 def _make_shell_args(ns: Namespace) -> ShellArguments:
-    return ShellArguments(xcf_path=ns.xcf_path)
+    return ShellArguments(xcf_path=ns.xcf_path)  # pyright: ignore[reportAny]
 
 
 def parse_args() -> Arguments:
@@ -245,7 +247,7 @@ def parse_args() -> Arguments:
     command('metadata', _add_metadata_parser, _make_metadata_args)
     command('shell', _add_shell_parser, _make_shell_args)
     ns = parser.parse_args()
-    return commands[ns.command](ns)
+    return commands[ns.command](ns)  # pyright: ignore[reportAny]
 
 
 def _make_shell_command(
@@ -265,6 +267,7 @@ def _make_shell_command(
     )
 
 
+@final
 class GIMP:
     def __init__(
         self,
@@ -338,7 +341,7 @@ class GIMP:
     def exec(self) -> NoReturn:
         os.execve('/usr/bin/gimp', self.make_args(), self.make_env())
 
-    def run(self) -> subprocess.CompletedProcess:
+    def run(self) -> subprocess.CompletedProcess[bytes]:
         return subprocess.run(self.make_args(), env=self.make_env(), check=True)
 
 
@@ -361,10 +364,10 @@ def do_export(args: ExportArguments) -> None:
     with NamedTemporaryFile() as temp_file:
         gimp.results_path = Path(temp_file.name)
         gimp.run()
-        results: list[str] = json.load(temp_file)
+        results = cast(list[str], json.load(temp_file))
 
     if results:
-        subprocess.run(('sxiv', '-t', *results))
+        subprocess.run(('sxiv', '-t', *results), check=False)
 
 
 def do_json_schema() -> None:
@@ -394,10 +397,29 @@ def do_metadata(args: MetadataArguments) -> None:
         case None:
             x_origin = y_origin = 0
 
-    table = Table('Path', 'W', 'H', 'X←', 'Y↑', 'X→', 'Y↓', title='Exports')
-    cwd = Path().resolve()
+    table = Table(
+        'Path',
+        'W',
+        'H',
+        'X←',
+        'Y↑',
+        'X→',
+        'Y↓',
+        'X',
+        'Y',
+        title='Exports',
+    )
+    cwd = Path.cwd().resolve(strict=True)
 
-    for path, width, height, x_offset, y_offset in exports:
+    for (
+        path,
+        width,
+        height,
+        x_offset,
+        y_offset,
+        x_scale,
+        y_scale,
+    ) in exports:
         table.add_row(
             str(path.relative_to(cwd, walk_up=True)),
             str(width),
@@ -406,6 +428,8 @@ def do_metadata(args: MetadataArguments) -> None:
             str(y_offset - y_origin),
             str(x_offset + width - x_origin),
             str(y_offset + height - y_origin),
+            str(x_scale),
+            str(y_scale),
         )
 
     console = Console()

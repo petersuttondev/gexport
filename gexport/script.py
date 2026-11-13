@@ -1,15 +1,15 @@
-from collections.abc import Iterable
-from dataclasses import dataclass
+import graphlib
 import json
 import os
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, NamedTuple, final
 
 import gi
 
 gi.require_version('Gimp', '3.0')
-from gi.repository import Gimp
-from gi.repository import Gio
+from gi.repository import Gimp, Gio
 from rich.console import Console
 
 from gexport.databaselib import open_database
@@ -20,11 +20,11 @@ from gexport.schemalib import (
     Export,
     Group,
     Scale,
+    ScaleFrom,
     WidthHeight,
     load_schema,
 )
 from gexport.util import open_image, open_image_duplicate, traverse
-
 
 console: Final = Console()
 
@@ -89,9 +89,15 @@ class ExportMetadata:
     height: Final[int]
     x_offset: Final[int]
     y_offset: Final[int]
+    x_scale: Final[float]
+    y_scale: Final[float]
 
 
-def create_export(image: Gimp.Image, export: Export) -> ExportMetadata:
+def create_export(
+    image: Gimp.Image,
+    export: Export,
+    get_scale_factor: Callable[[str], tuple[float, float]],
+) -> ExportMetadata:
     layers = image.get_layers()
 
     for layer, layer_path in traverse(layers):
@@ -161,22 +167,34 @@ def create_export(image: Gimp.Image, export: Export) -> ExportMetadata:
         )
         image.crop(*bbox)
 
+    def scale(
+        x_factor: float, y_factor: float, offsets: tuple[int, int]
+    ) -> tuple[int, int]:
+        if not image.scale(
+            round(x_factor * image.get_width()),
+            round(y_factor * image.get_height()),
+        ):
+            raise RuntimeError('Scale failed')
+
+        offsets = (round(x_factor * offsets[0]), round(y_factor * offsets[1]))
+        print(
+            f'Scaled to {image.get_width()}x{image.get_height()}+{offsets[0]}+{offsets[1]} (x{x_factor}, x{y_factor})'
+        )
+        return offsets
+
     match export.resize:
         case Scale(factor):
-            if not image.scale(
-                round(factor * image.get_width()),
-                round(factor * image.get_height()),
-            ):
-                raise RuntimeError('Scale failed')
+            x_factor = y_factor = factor
+            offsets = scale(factor, factor, offsets)
 
-            offsets = (round(factor * offsets[0]), round(factor * offsets[1]))
-            print(
-                f'Scaled to {image.get_width()}x{image.get_height()}+{offsets[0]}+{offsets[1]} (x{factor})'
-            )
+        case ScaleFrom(id_):
+            x_factor, y_factor = get_scale_factor(id_)
+            offsets = scale(x_factor, y_factor, offsets)
 
         case WidthHeight(width, height, allow_scale_up):
             assert width is not None or height is not None
             if width is None:
+                assert height is not None
                 x_factor = y_factor = height / image.get_height()
                 width = round(x_factor * image.get_width())
             elif height is None:
@@ -186,21 +204,20 @@ def create_export(image: Gimp.Image, export: Export) -> ExportMetadata:
                 x_factor = width / image.get_width()
                 y_factor = height / image.get_height()
             if (x_factor < 1 and y_factor < 1) or allow_scale_up:
-                if not image.scale(width, height):
-                    raise RuntimeError('Resize failed')
-                offsets = (
-                    round(x_factor * offsets[0]),
-                    round(y_factor * offsets[1]),
-                )
-                print(
-                    f'Scaled to {image.get_width()}x{image.get_height()}+{offsets[0]}+{offsets[1]} ({x_factor}, {y_factor})',
-                )
+                offsets = scale(x_factor, y_factor, offsets)
+            else:
+                x_factor = y_factor = 1.0
+
+        case None:
+            x_factor = y_factor = 1.0
 
     metadata = ExportMetadata(
         width=image.get_width(),
         height=image.get_height(),
         x_offset=offsets[0],
         y_offset=offsets[1],
+        x_scale=x_factor,
+        y_scale=y_factor,
     )
 
     export.path.parent.mkdir(parents=True, exist_ok=True)
@@ -241,26 +258,42 @@ def run() -> None:
     else:
 
         def should_export(path: Path) -> bool:
+            del path
             return True
 
     export_paths: list[str] = []
 
     with open_database(schema.database_path) as db:
+
+        def get_scale(id_: str) -> tuple[float, float]:
+            return db.get_scale(schema.get_export_by_id(id_).path)
+
         for xcf in schema.xcfs.values():
+            graph: dict[Export, set[Export]] = {
+                export: set() for export in xcf.exports.values()
+            }
+            for export in xcf.exports.values():
+                if isinstance(export.resize, ScaleFrom):
+                    graph[export].add(schema.get_export_by_id(export.resize.id))
+            exports = graphlib.TopologicalSorter(graph).static_order()
             with open_image(xcf.path) as image:
-                for export in xcf.exports.values():
+                for export in exports:
                     if should_export(export.path):
                         validate(export, image)
                         print('Exporting', export.path)
                         export_paths.append(str(export.path))
                         with open_image_duplicate(image) as duplicate:
-                            metadata = create_export(duplicate, export)
+                            metadata = create_export(
+                                duplicate, export, get_scale
+                            )
                             db.save_export(
                                 export.path,
                                 metadata.width,
                                 metadata.height,
                                 metadata.x_offset,
                                 metadata.y_offset,
+                                metadata.x_scale,
+                                metadata.y_scale,
                             )
                         print()
 

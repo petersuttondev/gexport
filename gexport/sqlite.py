@@ -1,16 +1,18 @@
-from collections.abc import Generator as _Generator
-from contextlib import closing as _closing, contextmanager as _contextmanager
-from enum import Enum as _Enum, unique as _unique
 import os as _os
 import re as _re
 import sqlite3 as _sqlite3
-from sqlite3 import Connection as _Connection, Cursor as _Cursor, Row as _Row
-from typing import (
-    ContextManager as _ContextManager,
-    Literal as _Literal,
-    cast as _cast,
-    final as _final,
-)
+from collections.abc import Generator as _Generator
+from contextlib import AbstractContextManager as _AbstractContextManager
+from contextlib import closing as _closing
+from contextlib import contextmanager as _contextmanager
+from enum import Enum as _Enum
+from enum import unique as _unique
+from sqlite3 import Connection as _Connection
+from sqlite3 import Cursor as _Cursor
+from sqlite3 import Row as _Row
+from typing import Literal as _Literal
+from typing import cast as _cast
+from typing import final as _final
 
 
 def uri(
@@ -98,7 +100,7 @@ def connect(
         conn.create_function('regexp', 2, _regexp_function, deterministic=True)
         with open_cursor(conn) as cursor:
             cursor.execute(
-                f'PRAGMA foreign_keys = {'ON' if foreign_keys else 'OFF'}'
+                f'PRAGMA foreign_keys = {"ON" if foreign_keys else "OFF"}'
             )
             cursor.execute('PRAGMA journal_mode = WAL')
             cursor.execute(f'PRAGMA synchronous = {s.value}')
@@ -106,7 +108,7 @@ def connect(
         yield conn
 
 
-def open_cursor(connection: _Connection) -> _ContextManager[_Cursor]:
+def open_cursor(connection: _Connection) -> _AbstractContextManager[_Cursor]:
     return _closing(connection.cursor())
 
 
