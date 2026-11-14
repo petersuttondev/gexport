@@ -222,12 +222,35 @@ def create_export(
 
     export.path.parent.mkdir(parents=True, exist_ok=True)
 
-    Gimp.file_save(
-        run_mode=Gimp.RunMode.NONINTERACTIVE,
-        image=image,
-        file=Gio.File.new_for_path(str(export.path)),
-        options=None,
-    )
+    if export.path.suffix.lower() == '.webp':
+        pdb = Gimp.get_pdb()
+        assert pdb is not None
+        proc = pdb.lookup_procedure('file-webp-export')
+        assert proc is not None
+        config = proc.create_config()
+        config.set_property('run-mode', Gimp.RunMode.NONINTERACTIVE)
+        config.set_property('image', image)
+        config.set_property('file', Gio.File.new_for_path(str(export.path)))
+        config.set_property('options', None)
+        config.set_property('lossless', False)
+        config.set_property('quality', 90.0)
+        config.set_property('alpha-quality', 100.0)
+        config.set_property('use-sharp-yuv', True)
+        config.set_property('include-color-profile', False)
+        config.set_property('include-exif', False)
+        config.set_property('include-iptc', False)
+        config.set_property('include-thumbnail', False)
+        config.set_property('include-xmp', False)
+        result = proc.run(config)
+        if result.index(0) != Gimp.PDBStatusType.SUCCESS:
+            raise RuntimeError(f'Export failed: {export.path}')
+    else:
+        Gimp.file_save(
+            run_mode=Gimp.RunMode.NONINTERACTIVE,
+            image=image,
+            file=Gio.File.new_for_path(str(export.path)),
+            options=None,
+        )
 
     return metadata
 

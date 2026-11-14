@@ -104,12 +104,40 @@ class PDB:
         ...
 
 
+class PDBStatusType(_Enum):
+    EXECUTION_ERROR = 0
+    CALLING_ERROR = 1
+    PASS_THROUGH = 2
+    SUCCESS = 3
+    CANCEL = 4
+
+
 class Procedure:
-    ...
+    def create_config(self) -> ProcedureConfig:
+        ...
+
+    def run(self, config: ProcedureConfig | None = None) -> ValueArray:
+        ...
+
+
+class ProcedureConfig:
+    def get_property(self, property_name: str) -> object:
+        ...
+
+    def set_property(self, property_name: str, value: object) -> None:
+        ...
 
 
 class RunMode(_Enum):
     NONINTERACTIVE = ...
+
+
+class ValueArray:
+    def index(self, index: int) -> object:
+        ...
+
+    def length(self) -> int:
+        ...
 
 
 @staticmethod
