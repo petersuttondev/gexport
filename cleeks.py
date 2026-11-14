@@ -41,11 +41,17 @@ def install(break_system_packages: bool = False) -> None:
 
 
 @task
-def uninstall() -> None:
+def uninstall(break_system_packages: bool = False) -> None:
     import subprocess
 
     subprocess.run(
-        ('pip', 'uninstall', '--yes', 'gexport'),
+        _args(
+            'pip',
+            'uninstall',
+            ('--break-system-packages',) if break_system_packages else (),
+            '--yes',
+            'gexport',
+        ),
         cwd=_get_project_dir(),
         check=True,
     )
