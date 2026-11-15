@@ -317,14 +317,6 @@ def _create_export(
 
 
 def run() -> None:
-    dump_path = os.environ.get('GEXPORT_DUMP')
-
-    if dump_path is not None:
-        from gexport import dump
-
-        dump.run(Path(dump_path))
-        return
-
     schema_path = Path(os.environ['GEXPORT_SCHEMA'])
     schema = load_schema(Path(schema_path))
 

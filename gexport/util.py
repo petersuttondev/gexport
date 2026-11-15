@@ -1,16 +1,15 @@
 import builtins
+import sys
 from collections.abc import Callable, Generator, Iterable, Sequence
 from contextlib import contextmanager
 from pathlib import Path
-import sys
 from types import TracebackType
 from typing import cast
 
 import gi
 
 gi.require_version('Gimp', '3.0')
-from gi.repository import Gimp
-from gi.repository import Gio
+from gi.repository import Gimp, Gio
 
 
 def check_bool(object: object) -> bool:
@@ -87,7 +86,7 @@ def open_image(path: Path) -> Generator[Gimp.Image]:
     )
 
     if image is None:
-        raise IOError(f'Cannot open {path}')
+        raise OSError(f'Cannot open {path}')
 
     try:
         yield image
