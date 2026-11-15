@@ -1,10 +1,11 @@
 # pyright: reportUninitializedInstanceVariable=false
 from enum import Enum, unique
 from pathlib import Path
-from typing import Literal, final
+from typing import Annotated, Literal, final
 
 import yaml
 from pydantic.config import ConfigDict
+from pydantic.fields import Field
 from pydantic.json_schema import SkipJsonSchema
 from pydantic.main import BaseModel
 
@@ -31,9 +32,9 @@ class Group(BaseModel):
 
     group: str
     default: Action | SkipJsonSchema[None] = None
-    show: 'list[Group | Layer | str] | Group | Layer | str | None' = None
-    hide: 'list[Group | Layer | str] | Group | Layer | str | None' = None
-    leave: 'list[Group | Layer | str] | Group | Layer | str | None' = None
+    show: list[Group | Layer | str] | Group | Layer | str | None = None
+    hide: list[Group | Layer | str] | Group | Layer | str | None = None
+    leave: list[Group | Layer | str] | Group | Layer | str | None = None
 
 
 @final
@@ -64,9 +65,10 @@ class Export(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
     id: str | SkipJsonSchema[None] = None
-    default: Action | SkipJsonSchema[None] = None
+    origin: Annotated[str | SkipJsonSchema[None], Field(default=None)]
     crop: CropAlgorithm | str | SkipJsonSchema[None] = None
     resize: ScaleFrom | WidthHeight | float | SkipJsonSchema[None] = None
+    default: Action | SkipJsonSchema[None] = None
     show: (
         list[Group | Layer | str] | Group | Layer | str | SkipJsonSchema[None]
     ) = None

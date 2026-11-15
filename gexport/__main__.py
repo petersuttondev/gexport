@@ -16,6 +16,8 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Final, NoReturn, cast, final
 
+from rich.table import Column
+
 from gexport import models
 from gexport.databaselib import open_database
 from gexport.util import (
@@ -398,7 +400,7 @@ def do_metadata(args: MetadataArguments) -> None:
             x_origin = y_origin = 0
 
     table = Table(
-        'Path',
+        Column('Name', justify='right'),
         'W',
         'H',
         'X←',
@@ -409,7 +411,6 @@ def do_metadata(args: MetadataArguments) -> None:
         'Y',
         title='Exports',
     )
-    cwd = Path.cwd().resolve(strict=True)
 
     for (
         path,
@@ -421,7 +422,7 @@ def do_metadata(args: MetadataArguments) -> None:
         y_scale,
     ) in exports:
         table.add_row(
-            str(path.relative_to(cwd, walk_up=True)),
+            str(path.name),
             str(width),
             str(height),
             str(x_offset - x_origin),
@@ -432,34 +433,7 @@ def do_metadata(args: MetadataArguments) -> None:
             str(y_scale),
         )
 
-    console = Console()
-    console.print(table)
-
-    left = min(e.x_offset - x_origin for e in exports)
-    top = min(e.y_offset - y_origin for e in exports)
-    right = max(e.x_offset + e.width - x_origin for e in exports)
-    bottom = max(e.y_offset + e.height - y_origin for e in exports)
-    width = right - left
-    height = bottom - top
-
-    table = Table(
-        'W',
-        'H',
-        'X←',
-        'Y↑',
-        'X→',
-        'Y↓',
-        title='Bounding Box',
-    )
-    table.add_row(
-        str(width),
-        str(height),
-        str(left),
-        str(top),
-        str(right),
-        str(bottom),
-    )
-    console.print(table)
+    Console().print(table)
 
 
 def do_shell(args: ShellArguments) -> NoReturn:

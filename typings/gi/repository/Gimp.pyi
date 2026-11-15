@@ -1,6 +1,6 @@
-from enum import Enum as _Enum
 from typing import Final as _Final
 from gi.repository import Gio as _Gio
+from gi.repository import GObject as _GObject
 
 
 class _GetOffsetsResult(tuple[bool, int, int]):
@@ -19,19 +19,23 @@ class Drawable(Item):
         ...
 
 
+class ExportOptions(_GObject.Object):
+    ...
+
+
 class GroupLayer(Layer):
     ...
 
 
-class MergeType(_Enum):
+class MergeType(_GObject.GEnum):
     EXPAND_AS_NECESSARY = 0
     CLIP_TO_IMAGE = 1
     CLIP_TO_BOTTOM_LAYER = 2
     FLATTEN_IMAGE = 3
 
 
-class Image:
-    def autocrop(self, drawble: Drawable | None = None) -> bool:
+class Image(_GObject.Object):
+    def autocrop(self, drawable: Drawable | None = None) -> bool:
         ...
 
     def crop(
@@ -77,7 +81,7 @@ class Image:
         ...
 
 
-class Item:
+class Item(_GObject.Object):
     def get_children(self) -> list[Item]:
         ...
 
@@ -87,7 +91,7 @@ class Item:
     def get_visible(self) -> bool:
         ...
 
-    def set_visible(self, visible: bool) -> None:
+    def set_visible(self, visible: bool) -> bool:
         ...
 
 
@@ -99,12 +103,12 @@ class Layer(Drawable):
         ...
 
 
-class PDB:
+class PDB(_GObject.Object):
     def lookup_procedure(self, procedure_name: str) -> Procedure | None:
         ...
 
 
-class PDBStatusType(_Enum):
+class PDBStatusType(_GObject.GEnum):
     EXECUTION_ERROR = 0
     CALLING_ERROR = 1
     PASS_THROUGH = 2
@@ -112,7 +116,7 @@ class PDBStatusType(_Enum):
     CANCEL = 4
 
 
-class Procedure:
+class Procedure(_GObject.Object):
     def create_config(self) -> ProcedureConfig:
         ...
 
@@ -120,19 +124,18 @@ class Procedure:
         ...
 
 
-class ProcedureConfig:
-    def get_property(self, property_name: str) -> object:
-        ...
-
-    def set_property(self, property_name: str, value: object) -> None:
-        ...
+class ProcedureConfig(_GObject.Object):
+    ...
 
 
-class RunMode(_Enum):
-    NONINTERACTIVE = ...
+class RunMode(_GObject.GEnum):
+    INTERACTIVE = 0
+    NONINTERACTIVE = 1
+    WITH_LAST_VALS = 2
 
 
 class ValueArray:
+    # PyGObject unpacks the GObject.Value into a Python value
     def index(self, index: int) -> object:
         ...
 
@@ -140,26 +143,22 @@ class ValueArray:
         ...
 
 
-@staticmethod
 def file_load(run_mode: RunMode, file: _Gio.File) -> Image | None:
     ...
 
 
-@staticmethod
 def file_save(
     run_mode: RunMode,
     image: Image,
     file: _Gio.File,
-    options: None,
+    options: ExportOptions | None = None,
 ) -> bool:
     ...
 
 
-@staticmethod
 def get_images() -> list[Image]:
     ...
 
 
-@staticmethod
 def get_pdb() -> PDB | None:
     ...

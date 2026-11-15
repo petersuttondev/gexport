@@ -29,17 +29,29 @@ from gexport.util import open_image, open_image_duplicate, traverse
 console: Final = Console()
 
 
-def validate_group(group: Group, image: Gimp.Image):
+# -- Validation -------------------------------------------------------------- #
+
+
+def _validate_group(group: Group, image: Gimp.Image) -> None:
     for name in group.layers:
         if image.get_layer_by_name(name) is None:
             raise ValueError(f'No layer named {name!r}')
-
     for child_group in group.groups.values():
-        validate_group(child_group, image)
+        _validate_group(child_group, image)
+
+
+def _validate_origin(export: Export, image: Gimp.Image) -> None:
+    origin = export.origin
+    if origin is not None and image.get_layer_by_name(origin) is None:
+        raise ValueError(f'Cannot find origin layer {export.origin!r}')
 
 
 def validate(export: Export, image: Gimp.Image):
-    validate_group(export.root, image)
+    _validate_group(export.root, image)
+    _validate_origin(export, image)
+
+
+# ---------------------------------------------------------------------------- #
 
 
 @final
@@ -93,7 +105,59 @@ class ExportMetadata:
     y_scale: Final[float]
 
 
-def create_export(
+@final
+class _Span(NamedTuple):
+    length: int
+    offset: int
+
+
+def _scale_span(factor: float, length: int, offset: int) -> _Span:
+    start = round(factor * offset)
+    end = round(factor * (length + offset))
+    return _Span(end - start, start)
+
+
+@final
+class _Offsets(NamedTuple):
+    x: int
+    y: int
+
+
+def _log_scale(
+    scaled_image: Gimp.Image,
+    offsets: _Offsets,
+    x_factor: float,
+    y_factor: float,
+) -> None:
+    w = scaled_image.get_width()
+    h = scaled_image.get_height()
+    x, y = offsets
+    print(f'Scaled to {w}x{h}+{x}+{y} (x{x_factor}, x{y_factor})')
+
+
+def _scale(
+    image: Gimp.Image,
+    x_factor: float,
+    y_factor: float,
+    offsets: _Offsets,
+    width: int | None = None,
+    height: int | None = None,
+) -> _Offsets:
+    x_span = _scale_span(x_factor, image.get_width(), offsets.x)
+    y_span = _scale_span(y_factor, image.get_height(), offsets.y)
+    # A requested width or height is exact. Spans can be off by one when the
+    # scaled offset lands on .5
+    if not image.scale(
+        x_span.length if width is None else width,
+        y_span.length if height is None else height,
+    ):
+        raise RuntimeError('Scale failed')
+    offsets = _Offsets(x_span.offset, y_span.offset)
+    _log_scale(image, offsets, x_factor, y_factor)
+    return offsets
+
+
+def _create_export(
     image: Gimp.Image,
     export: Export,
     get_scale_factor: Callable[[str], tuple[float, float]],
@@ -158,66 +222,63 @@ def create_export(
         case _:
             raise ValueError('Unhandled crop type')
 
-    if bbox is None:
-        offsets = (0, 0)
+    if export.origin is None:
+        origin = (0, 0)
     else:
-        offsets = (bbox.x_offset, bbox.y_offset)
+        origin_layer = image.get_layer_by_name(export.origin)
+        assert origin_layer is not None
+        _, x_origin, y_origin = origin_layer.get_offsets()
+        origin = max(x_origin, 0), max(y_origin, 0)
+
+    if bbox is None:
+        offsets = _Offsets(-origin[0], -origin[1])
+    else:
+        offsets = _Offsets(bbox.x_offset - origin[0], bbox.y_offset - origin[1])
         print(
             f'Cropping to {crop_name}: {bbox.width}x{bbox.height}+{bbox.x_offset}+{bbox.y_offset}',
         )
         image.crop(*bbox)
 
-    def scale(
-        x_factor: float, y_factor: float, offsets: tuple[int, int]
-    ) -> tuple[int, int]:
-        if not image.scale(
-            round(x_factor * image.get_width()),
-            round(y_factor * image.get_height()),
-        ):
-            raise RuntimeError('Scale failed')
-
-        offsets = (round(x_factor * offsets[0]), round(y_factor * offsets[1]))
-        print(
-            f'Scaled to {image.get_width()}x{image.get_height()}+{offsets[0]}+{offsets[1]} (x{x_factor}, x{y_factor})'
-        )
-        return offsets
+    cropped_width = image.get_width()
+    cropped_height = image.get_height()
 
     match export.resize:
         case Scale(factor):
             x_factor = y_factor = factor
-            offsets = scale(factor, factor, offsets)
+            offsets = _scale(image, factor, factor, offsets)
 
         case ScaleFrom(id_):
             x_factor, y_factor = get_scale_factor(id_)
-            offsets = scale(x_factor, y_factor, offsets)
+            offsets = _scale(image, x_factor, y_factor, offsets)
 
         case WidthHeight(width, height, allow_scale_up):
             assert width is not None or height is not None
             if width is None:
                 assert height is not None
                 x_factor = y_factor = height / image.get_height()
-                width = round(x_factor * image.get_width())
             elif height is None:
                 x_factor = y_factor = width / image.get_width()
-                height = round(y_factor * image.get_height())
             else:
                 x_factor = width / image.get_width()
                 y_factor = height / image.get_height()
             if (x_factor < 1 and y_factor < 1) or allow_scale_up:
-                offsets = scale(x_factor, y_factor, offsets)
-            else:
-                x_factor = y_factor = 1.0
+                offsets = _scale(
+                    image, x_factor, y_factor, offsets, width, height
+                )
 
         case None:
-            x_factor = y_factor = 1.0
+            pass
 
+    # Save the scale the image actually got, not the requested factor. Rounding
+    # the size changes it, e.g. 2026px at x0.355457 becomes 720px, x0.355380,
+    # and scale_from exports must line up with the image as exported
     metadata = ExportMetadata(
         width=image.get_width(),
         height=image.get_height(),
         x_offset=offsets[0],
         y_offset=offsets[1],
-        x_scale=x_factor,
-        y_scale=y_factor,
+        x_scale=image.get_width() / cropped_width,
+        y_scale=image.get_height() / cropped_height,
     )
 
     export.path.parent.mkdir(parents=True, exist_ok=True)
@@ -306,7 +367,7 @@ def run() -> None:
                         print('Exporting', export.path)
                         export_paths.append(str(export.path))
                         with open_image_duplicate(image) as duplicate:
-                            metadata = create_export(
+                            metadata = _create_export(
                                 duplicate, export, get_scale
                             )
                             db.save_export(

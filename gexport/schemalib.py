@@ -172,7 +172,7 @@ class Group(DefaultsMixin, SupportsParent):
         default_crop: Crop | None = None,
         default_mask: Action | None = None,
         default_resize: Resize | None = None,
-    ) -> 'Group':
+    ) -> Group:
         group = self.groups.get(name)
 
         if group is not None:
@@ -204,9 +204,10 @@ class Group(DefaultsMixin, SupportsParent):
 class Export(DefaultsMixin, SupportsParent):
     def __init__(
         self,
-        parent: 'XCF',
+        parent: XCF,
         path: Path,
         id: str | None = None,
+        origin: str | None = None,
         default_action: Action | None = None,
         default_crop: Crop | None = None,
         default_mask: Action | None = None,
@@ -222,6 +223,7 @@ class Export(DefaultsMixin, SupportsParent):
         self.xcf: Final = parent
         self._path: Final = path
         self.id: Final = id
+        self.origin: Final = origin
         self.root: Final = Group(self, default_action=default_action)
 
     @property
@@ -278,6 +280,7 @@ class XCF(DefaultsMixin, SupportsParent):
         self,
         path: Path,
         id: str | None = None,
+        origin: str | None = None,
         default_action: Action | None = None,
         default_crop: Crop | None = None,
         default_mask: Action | None = None,
@@ -287,6 +290,7 @@ class XCF(DefaultsMixin, SupportsParent):
             self,
             path,
             id=id,
+            origin=origin,
             default_action=default_action,
             default_crop=default_crop,
             default_mask=default_mask,
@@ -448,6 +452,7 @@ def add_export_from_model(
     export = xcf.add_export(
         _expand_export_path(root_dir, xcf.path, export_path),
         id=export_model.id,
+        origin=export_model.origin,
         default_action=create_action_from_model(export_model.default),
         default_crop=create_crop_from_model(export_model.crop),
         default_resize=create_resize_from_model(export_model.resize),

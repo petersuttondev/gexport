@@ -21,8 +21,8 @@ def _initialize(cursor: _Cursor) -> None:
                 path TEXT PRIMARY KEY
             ,   width INTEGER NOT NULL CHECK (width >= 0)
             ,   height INTEGER NOT NULL CHECK (height >= 0)
-            ,   x_offset INTEGER NOT NULL CHECK (x_offset >= 0)
-            ,   y_offset INTEGER NOT NULL CHECK (y_offset >= 0)
+            ,   x_offset INTEGER NOT NULL
+            ,   y_offset INTEGER NOT NULL
             ,   x_scale REAL NOT NULL CHECK (x_scale > 0)
             ,   y_scale REAL NOT NULL CHECK (y_scale > 0)
             ) STRICT;
