@@ -1,32 +1,21 @@
 [project]
 name = "gexport"
 version = "0.5.0"
-requires-python = ">= 3.14"
-dependencies = [
-  "PyGObject",
-  "ipython",
-  "pydantic",
-  "pyyaml",
-  "rich",
-]
+description = "Manifest-driven batch post-process and exporter for GIMP"
+readme = "README.md"
+authors = [{ name = "Peter Sutton", email = "peter@foxdogstudios.com" }]
+requires-python = ">=3.14"
+dependencies = ["PyGObject", "pydantic", "pyyaml", "rich"]
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[dependency-groups]
+dev = ["cleek"]
 
-[tool.poetry.dependencies]
-python = "^3.14"
-
-[tool.poetry.scripts]
+[project.scripts]
 gexport = "gexport.__main__:main"
 
-[tool.pyright]
-stubPath = "typings"
-reportUnusedCallResult = false
-reportMissingModuleSource = false
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
 
 [tool.ruff]
 line-length = 80
-
-[tool.ruff.format]
-quote-style = "single"

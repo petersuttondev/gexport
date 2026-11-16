@@ -52,7 +52,7 @@ class WidthHeight:
 
     def __post_init__(self) -> None:
         if self.width is None and self.height is None:
-            raise ValueError('Either width or height must be given.')
+            raise ValueError("Either width or height must be given.")
 
 
 type Resize = Scale | ScaleFrom | WidthHeight
@@ -176,7 +176,7 @@ class Group(DefaultsMixin, SupportsParent):
         group = self.groups.get(name)
 
         if group is not None:
-            raise KeyError(f'A group named {name!r} already exists')
+            raise KeyError(f"A group named {name!r} already exists")
 
         group = Group(
             self,
@@ -228,7 +228,7 @@ class Export(DefaultsMixin, SupportsParent):
 
     @property
     def path(self) -> Path:
-        stem = self._path.stem.replace('$stem', self.xcf.path.stem)
+        stem = self._path.stem.replace("$stem", self.xcf.path.stem)
         return self._path.with_stem(stem)
 
     @property
@@ -342,7 +342,7 @@ class Schema:
             for export in xcf.exports.values():
                 if export.id == id_:
                     return export
-        raise ValueError(f'No export with ID {id_!r}')
+        raise ValueError(f"No export with ID {id_!r}")
 
 
 def create_action_from_model(
@@ -438,7 +438,7 @@ def _expand_export_path(
 ) -> Path:
     return (
         Path(xcf_path.parent, *export_path.parts[1:])
-        if export_path.parts[0] == '$parent'
+        if export_path.parts[0] == "$parent"
         else root_dir / export_path
     )
 
@@ -522,6 +522,6 @@ def load_schema(path: Path) -> Schema:
         for export in xcf.exports.values():
             if export.id is not None:
                 if export.id in export_ids:
-                    raise ValueError(f'Duplicate export ID {export.id!r}')
+                    raise ValueError(f"Duplicate export ID {export.id!r}")
                 export_ids.add(export.id)
     return schema

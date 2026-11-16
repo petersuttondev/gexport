@@ -8,15 +8,15 @@ from typing import cast
 
 import gi
 
-gi.require_version('Gimp', '3.0')
-from gi.repository import Gimp, Gio
+gi.require_version("Gimp", "3.0")
+from gi.repository import Gimp, Gio  # pyright: ignore[reportMissingModuleSource]
 
 
 def check_bool(object: object) -> bool:
     if isinstance(object, bool):
         return object
     raise TypeError(
-        f'expected object to be a bool, got {type(object).__name__!r}',
+        f"expected object to be a bool, got {type(object).__name__!r}",
     )
 
 
@@ -24,19 +24,19 @@ def check_path(object: object) -> Path:
     if isinstance(object, Path):
         return object
     raise TypeError(
-        f'expected object to be a Path, got {type(object).__name__!r}',
+        f"expected object to be a Path, got {type(object).__name__!r}",
     )
 
 
 def check_str_list(object: object) -> list[str]:
     if not isinstance(object, list):
         raise TypeError(
-            f'expected object to a list, got {type(object).__name__!r}',
+            f"expected object to a list, got {type(object).__name__!r}",
         )
     for i, item in enumerate(cast(list[builtins.object], object)):
         if not isinstance(item, str):
             raise TypeError(
-                f'expected object[{i}] to be a str, got {type(item).__name__!r}',
+                f"expected object[{i}] to be a str, got {type(item).__name__!r}",
             )
     return cast(list[str], object)
 
@@ -86,7 +86,7 @@ def open_image(path: Path) -> Generator[Gimp.Image]:
     )
 
     if image is None:
-        raise OSError(f'Cannot open {path}')
+        raise OSError(f"Cannot open {path}")
 
     try:
         yield image

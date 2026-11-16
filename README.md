@@ -14,7 +14,7 @@ multiple images from your complex GIMP projects.
 ```shell
 $ git clone https://github.com/petersuttondev/gexport.git
 $ cd gexport
-$ pip install .
+$ uv tool install --editable .
 ```
 
 ## Get Started

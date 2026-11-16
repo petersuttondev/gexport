@@ -19,46 +19,46 @@ def uri(
     filename: _os.PathLike[bytes] | _os.PathLike[str] | str | bytes,
     *,
     vfs: bool | None = None,
-    mode: _Literal['ro', 'rw', 'rwc', 'memory'] | None = None,
-    cache: _Literal['shared', 'private'] | None = None,
+    mode: _Literal["ro", "rw", "rwc", "memory"] | None = None,
+    cache: _Literal["shared", "private"] | None = None,
     psow: bool | None = None,
     nolock: bool | None = None,
     immutable: bool | None = None,
 ) -> str:
     from urllib.request import pathname2url
 
-    parts = [f'file:{pathname2url(str(filename))}']
+    parts = [f"file:{pathname2url(str(filename))}"]
     options: dict[str, str] = {}
 
     def set_bool(key: str, value: bool | None) -> None:
         if value is not None:
-            options[key] = '1' if value else '0'
+            options[key] = "1" if value else "0"
 
     def set_str(key: str, value: str | None) -> None:
         if value is not None:
             options[key] = value
 
-    set_bool('vfs', vfs)
-    set_str('mode', mode)
-    set_str('cache', cache)
-    set_bool('psow', psow)
-    set_bool('nolock', nolock)
-    set_bool('immutable', immutable)
+    set_bool("vfs", vfs)
+    set_str("mode", mode)
+    set_str("cache", cache)
+    set_bool("psow", psow)
+    set_bool("nolock", nolock)
+    set_bool("immutable", immutable)
 
     if options:
-        parts.append('?')
-        parts.append('&'.join(f'{k}={v}' for k, v in options.items()))
+        parts.append("?")
+        parts.append("&".join(f"{k}={v}" for k, v in options.items()))
 
-    return ''.join(parts)
+    return "".join(parts)
 
 
 @_final
 @_unique
 class _Synchronous(_Enum):
-    OFF = 'OFF'
-    NORMAL = 'NORMAL'
-    FULL = 'FULL'
-    EXTRA = 'EXTRA'
+    OFF = "OFF"
+    NORMAL = "NORMAL"
+    FULL = "FULL"
+    EXTRA = "EXTRA"
 
 
 def _regexp_function(pattern: str, string: str) -> bool:
@@ -72,39 +72,39 @@ def connect(
     foreign_keys: bool = True,
     readonly: bool = False,
     row_factory: bool = False,
-    synchronous: _Literal['off', 'normal', 'full', 'extra'] = 'normal',
+    synchronous: _Literal["off", "normal", "full", "extra"] = "normal",
     trace: bool = False,
 ) -> _Generator[_Connection]:
     match _cast(object, synchronous):
-        case 'off':
+        case "off":
             s = _Synchronous.OFF
-        case 'normal':
+        case "normal":
             s = _Synchronous.NORMAL
-        case 'full':
+        case "full":
             s = _Synchronous.FULL
-        case 'extra':
+        case "extra":
             s = _Synchronous.EXTRA
         case _:
-            raise ValueError(f'invalid synchronous flag {synchronous!r}')
+            raise ValueError(f"invalid synchronous flag {synchronous!r}")
     del synchronous
     if readonly:
-        database = uri(database, mode='ro', immutable=True)
+        database = uri(database, mode="ro", immutable=True)
     if trace:
-        print('Connecting to', database)
+        print("Connecting to", database)
     conn = _sqlite3.connect(database, isolation_level=None, uri=readonly)
     with _closing(conn):
         if row_factory:
             conn.row_factory = _Row
         if trace:
             conn.set_trace_callback(print)
-        conn.create_function('regexp', 2, _regexp_function, deterministic=True)
+        conn.create_function("regexp", 2, _regexp_function, deterministic=True)
         with open_cursor(conn) as cursor:
             cursor.execute(
-                f'PRAGMA foreign_keys = {"ON" if foreign_keys else "OFF"}'
+                f"PRAGMA foreign_keys = {'ON' if foreign_keys else 'OFF'}"
             )
-            cursor.execute('PRAGMA journal_mode = WAL')
-            cursor.execute(f'PRAGMA synchronous = {s.value}')
-            cursor.execute('PRAGMA temp_store = MEMORY')
+            cursor.execute("PRAGMA journal_mode = WAL")
+            cursor.execute(f"PRAGMA synchronous = {s.value}")
+            cursor.execute("PRAGMA temp_store = MEMORY")
         yield conn
 
 
@@ -114,11 +114,11 @@ def open_cursor(connection: _Connection) -> _AbstractContextManager[_Cursor]:
 
 @_contextmanager
 def transaction(cursor: _Cursor) -> _Generator[None]:
-    cursor.execute('BEGIN')
+    cursor.execute("BEGIN")
     try:
         yield
     except:
-        cursor.execute('ROLLBACK')
+        cursor.execute("ROLLBACK")
         raise
     else:
-        cursor.execute('COMMIT')
+        cursor.execute("COMMIT")

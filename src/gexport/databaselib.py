@@ -51,11 +51,11 @@ class _Database:
     def get_scale(self, path: _Path) -> tuple[float, float]:
         path_str = os.fspath(path)
         self._cursor.execute(
-            'SELECT x_scale, y_scale FROM exports WHERE path = ?', (path_str,)
+            "SELECT x_scale, y_scale FROM exports WHERE path = ?", (path_str,)
         )
         row = _cast(tuple[float, float] | None, self._cursor.fetchone())
         if row is None:
-            raise ValueError(f'No export with path {path_str!r}')
+            raise ValueError(f"No export with path {path_str!r}")
         return row[0], row[1]
 
     def iter_exports(self) -> _Iterable[Export]:
@@ -88,7 +88,7 @@ class _Database:
     def remove_data_for_missing_files(self) -> None:
         with _transaction(self._cursor):
             self._cursor.executemany(
-                r'DELETE FROM exports WHERE path = ?',
+                r"DELETE FROM exports WHERE path = ?",
                 (
                     (str(export.path),)
                     for export in self.iter_exports()

@@ -4,12 +4,12 @@ import os
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final, NamedTuple, final
+from typing import Final, NamedTuple, cast, final
 
 import gi
 
-gi.require_version('Gimp', '3.0')
-from gi.repository import Gimp, Gio
+gi.require_version("Gimp", "3.0")
+from gi.repository import Gimp, Gio  # pyright: ignore[reportMissingModuleSource]
 from rich.console import Console
 
 from gexport.databaselib import open_database
@@ -35,7 +35,7 @@ console: Final = Console()
 def _validate_group(group: Group, image: Gimp.Image) -> None:
     for name in group.layers:
         if image.get_layer_by_name(name) is None:
-            raise ValueError(f'No layer named {name!r}')
+            raise ValueError(f"No layer named {name!r}")
     for child_group in group.groups.values():
         _validate_group(child_group, image)
 
@@ -43,7 +43,7 @@ def _validate_group(group: Group, image: Gimp.Image) -> None:
 def _validate_origin(export: Export, image: Gimp.Image) -> None:
     origin = export.origin
     if origin is not None and image.get_layer_by_name(origin) is None:
-        raise ValueError(f'Cannot find origin layer {export.origin!r}')
+        raise ValueError(f"Cannot find origin layer {export.origin!r}")
 
 
 def validate(export: Export, image: Gimp.Image):
@@ -79,7 +79,7 @@ def get_bounding_box(
             max_bottom = max(top + layer.get_height(), max_bottom)
 
     if max_right < min_left or max_bottom < min_top:
-        raise ValueError('Cannot find bounding box')
+        raise ValueError("Cannot find bounding box")
 
     min_left = max(min_left, 0)
     min_top = max(min_top, 0)
@@ -132,7 +132,7 @@ def _log_scale(
     w = scaled_image.get_width()
     h = scaled_image.get_height()
     x, y = offsets
-    print(f'Scaled to {w}x{h}+{x}+{y} (x{x_factor}, x{y_factor})')
+    print(f"Scaled to {w}x{h}+{x}+{y} (x{x_factor}, x{y_factor})")
 
 
 def _scale(
@@ -151,7 +151,7 @@ def _scale(
         x_span.length if width is None else width,
         y_span.length if height is None else height,
     ):
-        raise RuntimeError('Scale failed')
+        raise RuntimeError("Scale failed")
     offsets = _Offsets(x_span.offset, y_span.offset)
     _log_scale(image, offsets, x_factor, y_factor)
     return offsets
@@ -169,32 +169,32 @@ def _create_export(
 
         match layer_actions.action:
             case Action.SHOW:
-                color = 'green'
+                color = "green"
                 layer.set_visible(True)
             case Action.HIDE:
-                color = 'red'
+                color = "red"
                 layer.set_visible(False)
             case Action.LEAVE:
-                color = 'dim'
+                color = "dim"
 
         match layer_actions.mask:
             case Action.SHOW:
-                mask = ' (masked)'
+                mask = " (masked)"
                 layer.set_apply_mask(True)
             case Action.HIDE:
-                mask = ''
+                mask = ""
                 layer.set_apply_mask(False)
             case Action.LEAVE:
-                mask = ' (masked)' if layer.get_apply_mask() else ''
+                mask = " (masked)" if layer.get_apply_mask() else ""
 
-        path = ' → '.join(layer_path)
-        console.print(f'[{color}]{path}{mask}[/{color}]')
+        path = " → ".join(layer_path)
+        console.print(f"[{color}]{path}{mask}[/{color}]")
 
     bbox: BoundingBox | None
 
     match export.crop:
         case CropBoundingBox():
-            crop_name = 'bounding box'
+            crop_name = "bounding box"
             bbox = get_bounding_box(image, image.get_layers())
 
         case CropLayer(name=name):
@@ -202,7 +202,7 @@ def _create_export(
 
             if layer is None:
                 raise ValueError(
-                    f'Failed to get crop_to layer. No layer named {name!r}',
+                    f"Failed to get crop_to layer. No layer named {name!r}",
                 )
 
             crop_name = name
@@ -216,11 +216,11 @@ def _create_export(
                 max(y_offset, 0),
             )
         case None:
-            crop_name = 'none'
+            crop_name = "none"
             bbox = None
 
         case _:
-            raise ValueError('Unhandled crop type')
+            raise ValueError("Unhandled crop type")
 
     if export.origin is None:
         origin = (0, 0)
@@ -235,7 +235,7 @@ def _create_export(
     else:
         offsets = _Offsets(bbox.x_offset - origin[0], bbox.y_offset - origin[1])
         print(
-            f'Cropping to {crop_name}: {bbox.width}x{bbox.height}+{bbox.x_offset}+{bbox.y_offset}',
+            f"Cropping to {crop_name}: {bbox.width}x{bbox.height}+{bbox.x_offset}+{bbox.y_offset}",
         )
         image.crop(*bbox)
 
@@ -283,28 +283,28 @@ def _create_export(
 
     export.path.parent.mkdir(parents=True, exist_ok=True)
 
-    if export.path.suffix.lower() == '.webp':
+    if export.path.suffix.lower() == ".webp":
         pdb = Gimp.get_pdb()
         assert pdb is not None
-        proc = pdb.lookup_procedure('file-webp-export')
+        proc = pdb.lookup_procedure("file-webp-export")
         assert proc is not None
         config = proc.create_config()
-        config.set_property('run-mode', Gimp.RunMode.NONINTERACTIVE)
-        config.set_property('image', image)
-        config.set_property('file', Gio.File.new_for_path(str(export.path)))
-        config.set_property('options', None)
-        config.set_property('lossless', False)
-        config.set_property('quality', 90.0)
-        config.set_property('alpha-quality', 100.0)
-        config.set_property('use-sharp-yuv', True)
-        config.set_property('include-color-profile', False)
-        config.set_property('include-exif', False)
-        config.set_property('include-iptc', False)
-        config.set_property('include-thumbnail', False)
-        config.set_property('include-xmp', False)
+        config.set_property("run-mode", Gimp.RunMode.NONINTERACTIVE)
+        config.set_property("image", image)
+        config.set_property("file", Gio.File.new_for_path(str(export.path)))
+        config.set_property("options", None)
+        config.set_property("lossless", False)
+        config.set_property("quality", 90.0)
+        config.set_property("alpha-quality", 100.0)
+        config.set_property("use-sharp-yuv", True)
+        config.set_property("include-color-profile", False)
+        config.set_property("include-exif", False)
+        config.set_property("include-iptc", False)
+        config.set_property("include-thumbnail", False)
+        config.set_property("include-xmp", False)
         result = proc.run(config)
         if result.index(0) != Gimp.PDBStatusType.SUCCESS:
-            raise RuntimeError(f'Export failed: {export.path}')
+            raise RuntimeError(f"Export failed: {export.path}")
     else:
         Gimp.file_save(
             run_mode=Gimp.RunMode.NONINTERACTIVE,
@@ -317,11 +317,14 @@ def _create_export(
 
 
 def run() -> None:
-    schema_path = Path(os.environ['GEXPORT_SCHEMA'])
+    schema_path = Path(os.environ["GEXPORT_SCHEMA"])
     schema = load_schema(Path(schema_path))
 
-    if 'GEXPORT_SUBSTRINGS' in os.environ:
-        substrings = tuple(json.loads(os.environ['GEXPORT_SUBSTRINGS']))
+    if "GEXPORT_SUBSTRINGS" in os.environ:
+        json_substrings = cast(
+            list[str], json.loads(os.environ["GEXPORT_SUBSTRINGS"])
+        )
+        substrings = tuple(json_substrings)
     else:
         substrings = ()
 
@@ -356,7 +359,7 @@ def run() -> None:
                 for export in exports:
                     if should_export(export.path):
                         validate(export, image)
-                        print('Exporting', export.path)
+                        print("Exporting", export.path)
                         export_paths.append(str(export.path))
                         with open_image_duplicate(image) as duplicate:
                             metadata = _create_export(
@@ -373,8 +376,8 @@ def run() -> None:
                             )
                         print()
 
-    results_path = os.environ.get('GEXPORT_RESULTS')
+    results_path = os.environ.get("GEXPORT_RESULTS")
 
     if results_path is not None:
-        with open(results_path, 'w') as results_file:
+        with open(results_path, "w") as results_file:
             json.dump(export_paths, results_file)

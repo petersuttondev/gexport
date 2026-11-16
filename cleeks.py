@@ -15,11 +15,11 @@ def clean(dry_run: bool = False) -> None:
     import shlex
     import subprocess
 
-    args = ['git', 'clean', '--force']
+    args = ["git", "clean", "--force"]
     if dry_run:
-        args.append('--dry-run')
-    args.append('-X')
-    args.append('.')
+        args.append("--dry-run")
+    args.append("-X")
+    args.append(".")
     print(shlex.join(args))
     subprocess.run(args, cwd=_get_project_dir(), check=True)
 
@@ -30,10 +30,10 @@ def install(break_system_packages: bool = False) -> None:
 
     subprocess.run(
         _args(
-            ('pip', 'install'),
-            ('--break-system-packages',) if break_system_packages else (),
-            ('--config-settings', 'editable_mode=strict'),
-            ('--editable', '.'),
+            ("pip", "install"),
+            ("--break-system-packages",) if break_system_packages else (),
+            ("--config-settings", "editable_mode=strict"),
+            ("--editable", "."),
         ),
         cwd=_get_project_dir(),
         check=True,
@@ -46,11 +46,11 @@ def uninstall(break_system_packages: bool = False) -> None:
 
     subprocess.run(
         _args(
-            'pip',
-            'uninstall',
-            ('--break-system-packages',) if break_system_packages else (),
-            '--yes',
-            'gexport',
+            "pip",
+            "uninstall",
+            ("--break-system-packages",) if break_system_packages else (),
+            "--yes",
+            "gexport",
         ),
         cwd=_get_project_dir(),
         check=True,
@@ -76,10 +76,10 @@ def _args(*args: _Args) -> list[str]:
     return flat
 
 
-_project_dir: 'Path | None' = None
+_project_dir: Path | None = None
 
 
-def _get_project_dir() -> 'Path':
+def _get_project_dir() -> Path:
     global _project_dir
     if _project_dir is None:
         from pathlib import Path

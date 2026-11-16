@@ -13,16 +13,16 @@ if TYPE_CHECKING:
 
 type Subparsers = _SubParsersAction[ArgumentParser]
 
-_DEFAULT_SCHEMA_PATH: Final[Path] = Path('gexport.yaml')
+_DEFAULT_SCHEMA_PATH: Final[Path] = Path("gexport.yaml")
 
 
 def _add_schema_argument(parser: ArgumentParser) -> None:
     parser.add_argument(
-        '-s',
-        '--schema',
+        "-s",
+        "--schema",
         default=_DEFAULT_SCHEMA_PATH,
         type=Path,
-        dest='schema_path',
+        dest="schema_path",
     )
 
 
@@ -44,16 +44,16 @@ class ExportArgs:
 
 @final
 class _ExportModel(BaseModel, frozen=True):  # pyright: ignore[reportUninitializedInstanceVariable]
-    model_config = ConfigDict(extra='forbid')
-    subcommand: Final[Literal['export']]  # noqa: PYI064
+    model_config = ConfigDict(extra="forbid")
+    subcommand: Final[Literal["export"]]  # noqa: PYI064
     schema_path: Final[Path]
     substrings: Final[list[str]]
 
 
 def _add_export_parser(subparsers: Subparsers) -> None:
-    parser = _add_subcommand(subparsers, 'export')
+    parser = _add_subcommand(subparsers, "export")
     _add_schema_argument(parser)
-    parser.add_argument('substrings', nargs='*')
+    parser.add_argument("substrings", nargs="*")
 
 
 def _make_export_args(model: _ExportModel) -> ExportArgs:
@@ -76,8 +76,8 @@ class MetadataArgs:
 
 @final
 class _MetadataModel(BaseModel, frozen=True):  # pyright: ignore[reportUninitializedInstanceVariable]
-    model_config = ConfigDict(extra='forbid')
-    subcommand: Final[Literal['metadata']]  # noqa: PYI064
+    model_config = ConfigDict(extra="forbid")
+    subcommand: Final[Literal["metadata"]]  # noqa: PYI064
     schema_path: Final[Path]
     database_path: Final[Path | None]
     clean: Final[bool]
@@ -85,11 +85,11 @@ class _MetadataModel(BaseModel, frozen=True):  # pyright: ignore[reportUninitial
 
 
 def _add_metadata_parser(subparsers: Subparsers) -> None:
-    parser = _add_subcommand(subparsers, 'metadata')
+    parser = _add_subcommand(subparsers, "metadata")
     _add_schema_argument(parser)
-    parser.add_argument('-c', '--clean', action='store_true')
-    parser.add_argument('-d', '--database', type=Path, dest='database_path')
-    parser.add_argument('substrings', nargs='*')
+    parser.add_argument("-c", "--clean", action="store_true")
+    parser.add_argument("-d", "--database", type=Path, dest="database_path")
+    parser.add_argument("substrings", nargs="*")
 
 
 def _make_metadata_args(model: _MetadataModel) -> MetadataArgs:
@@ -112,12 +112,12 @@ class JSONSchemaArgs:
 
 @final
 class _JSONSchemaModel(BaseModel, frozen=True):  # pyright: ignore[reportUninitializedInstanceVariable]
-    model_config = ConfigDict(extra='forbid')
-    subcommand: Final[Literal['json-schema']]  # noqa: PYI064
+    model_config = ConfigDict(extra="forbid")
+    subcommand: Final[Literal["json-schema"]]  # noqa: PYI064
 
 
 def _add_json_schema_parser(subparsers: Subparsers) -> None:
-    _add_subcommand(subparsers, 'json-schema')
+    _add_subcommand(subparsers, "json-schema")
 
 
 def _make_json_schema_args() -> JSONSchemaArgs:
@@ -131,8 +131,8 @@ type Args = ExportArgs | MetadataArgs | JSONSchemaArgs
 
 @final
 class _DefaultModel(BaseModel, frozen=True):  # pyright: ignore[reportUninitializedInstanceVariable]
-    model_config = ConfigDict(extra='forbid')
-    subcommand: Final[Literal['default']]  # noqa: PYI064
+    model_config = ConfigDict(extra="forbid")
+    subcommand: Final[Literal["default"]]  # noqa: PYI064
 
 
 type _ArgsModel = (
@@ -142,7 +142,7 @@ type _ArgsModel = (
 
 def make_parser() -> ArgumentParser:
     parser = ArgumentParser()
-    parser.set_defaults(subcommand='default')
+    parser.set_defaults(subcommand="default")
     subparsers = parser.add_subparsers()
     _add_export_parser(subparsers)
     _add_metadata_parser(subparsers)
@@ -151,7 +151,7 @@ def make_parser() -> ArgumentParser:
 
 
 _args_model_adapter: Final = TypeAdapter[_ArgsModel](
-    Annotated[_ArgsModel, Field(discriminator='subcommand')]
+    Annotated[_ArgsModel, Field(discriminator="subcommand")]
 )
 
 
@@ -161,13 +161,13 @@ def _make_model(ns: Namespace) -> _ArgsModel:
 
 def _make_args(model: _ArgsModel) -> Args:
     match model.subcommand:
-        case 'default':
+        case "default":
             return ExportArgs(schema_path=_DEFAULT_SCHEMA_PATH, substrings=())
-        case 'export':
+        case "export":
             return _make_export_args(model)
-        case 'metadata':
+        case "metadata":
             return _make_metadata_args(model)
-        case 'json-schema':
+        case "json-schema":
             return _make_json_schema_args()
 
 
