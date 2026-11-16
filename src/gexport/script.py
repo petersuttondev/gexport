@@ -157,6 +157,53 @@ def _scale(
     return offsets
 
 
+def _save_webp(image: Gimp.Image, path: Path) -> None:
+    pdb = Gimp.get_pdb()
+    assert pdb is not None
+    proc = pdb.lookup_procedure("file-webp-export")
+    assert proc is not None
+    config = proc.create_config()
+    config.set_property("run-mode", Gimp.RunMode.NONINTERACTIVE)
+    config.set_property("image", image)
+    config.set_property("file", Gio.File.new_for_path(str(path)))
+    config.set_property("options", None)
+    config.set_property("lossless", False)
+    config.set_property("quality", 90.0)
+    config.set_property("alpha-quality", 100.0)
+    # Sharp YUV ignores alpha, so it puts a saturated halo on hard edges next to
+    # transparent areas (e.g. orange on a brown wall). It may help at hard
+    # edges between saturated colours but makes little visual difference in
+    # low-saturation photos and increases file size roughly 5%.
+    config.set_property("use-sharp-yuv", False)
+    config.set_property("include-color-profile", False)
+    config.set_property("include-exif", False)
+    config.set_property("include-iptc", False)
+    config.set_property("include-thumbnail", False)
+    config.set_property("include-xmp", False)
+    result = proc.run(config)
+    if result.index(0) != Gimp.PDBStatusType.SUCCESS:
+        raise RuntimeError(f"Export failed: {path}")
+
+
+def _save_generic(image: Gimp.Image, path: Path) -> None:
+    Gimp.file_save(
+        run_mode=Gimp.RunMode.NONINTERACTIVE,
+        image=image,
+        file=Gio.File.new_for_path(str(path)),
+        options=None,
+    )
+
+
+def _save(image: Gimp.Image, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    match path.suffix.lower():
+        case ".webp":
+            save = _save_webp
+        case _:
+            save = _save_generic
+    save(image, path)
+
+
 def _create_export(
     image: Gimp.Image,
     export: Export,
@@ -281,38 +328,13 @@ def _create_export(
         y_scale=image.get_height() / cropped_height,
     )
 
-    export.path.parent.mkdir(parents=True, exist_ok=True)
+    # The WebP plugin's flattening leaves the clip backdrop's colour in
+    # transparent pixels. Enabling Sharp YUV leaks this colour into edges.
+    # Erase backdrop colour by flatten ourselves.
+    if image.merge_visible_layers(Gimp.MergeType.CLIP_TO_IMAGE) is None:
+        console.print('[yellow]Warning: exporting empty image[/]')
 
-    if export.path.suffix.lower() == ".webp":
-        pdb = Gimp.get_pdb()
-        assert pdb is not None
-        proc = pdb.lookup_procedure("file-webp-export")
-        assert proc is not None
-        config = proc.create_config()
-        config.set_property("run-mode", Gimp.RunMode.NONINTERACTIVE)
-        config.set_property("image", image)
-        config.set_property("file", Gio.File.new_for_path(str(export.path)))
-        config.set_property("options", None)
-        config.set_property("lossless", False)
-        config.set_property("quality", 90.0)
-        config.set_property("alpha-quality", 100.0)
-        config.set_property("use-sharp-yuv", True)
-        config.set_property("include-color-profile", False)
-        config.set_property("include-exif", False)
-        config.set_property("include-iptc", False)
-        config.set_property("include-thumbnail", False)
-        config.set_property("include-xmp", False)
-        result = proc.run(config)
-        if result.index(0) != Gimp.PDBStatusType.SUCCESS:
-            raise RuntimeError(f"Export failed: {export.path}")
-    else:
-        Gimp.file_save(
-            run_mode=Gimp.RunMode.NONINTERACTIVE,
-            image=image,
-            file=Gio.File.new_for_path(str(export.path)),
-            options=None,
-        )
-
+    _save(image, export.path)
     return metadata
 
 
