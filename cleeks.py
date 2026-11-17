@@ -2,6 +2,8 @@ from typing import TYPE_CHECKING
 
 from cleek import task
 
+from gexport.cli import make_parser
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from pathlib import Path
@@ -56,6 +58,11 @@ def uninstall(break_system_packages: bool = False) -> None:
         check=True,
     )
 
+@task
+def completion() -> None:
+    import shtab
+
+    print(shtab.complete(make_parser(), shell='zsh'), end='', flush=True)
 
 # -- Utilities -----------------------------------------------------------------
 

@@ -116,7 +116,6 @@ class _Database:
                 ,   y_offset = excluded.y_offset
                 ,   x_scale = excluded.x_scale
                 ,   y_scale = excluded.y_scale
-
             """,
             (
                 str(path),

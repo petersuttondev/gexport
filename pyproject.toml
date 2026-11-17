@@ -8,7 +8,10 @@ requires-python = ">=3.14"
 dependencies = ["PyGObject", "pydantic", "pyyaml", "rich"]
 
 [dependency-groups]
-dev = ["cleek"]
+dev = [
+    "cleek",
+    "shtab>=1.13.0",
+]
 
 [project.scripts]
 gexport = "gexport.__main__:main"

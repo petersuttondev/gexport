@@ -139,7 +139,7 @@ type _ArgsModel = _DefaultModel | _ExportModel | _LayoutModel | _JSONSchemaModel
 
 
 def make_parser() -> ArgumentParser:
-    parser = ArgumentParser()
+    parser = ArgumentParser(prog='gexport')
     parser.set_defaults(subcommand="default")
     subparsers = parser.add_subparsers()
     _add_export_parser(subparsers)
