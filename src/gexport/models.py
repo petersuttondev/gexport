@@ -38,7 +38,7 @@ class Group(BaseModel):
 @final
 class CropAlgorithm(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    algorithm: Literal["bounding-box"]
+    algorithm: Literal["content", "layers"]
 
 
 @final

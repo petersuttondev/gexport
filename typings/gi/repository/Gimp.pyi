@@ -7,6 +7,21 @@ class _GetOffsetsResult(tuple[bool, int, int]):
     offset_x: _Final[int]
     offset_y: _Final[int]
 
+class _SelectionBoundsResult(tuple[bool, bool, int, int, int, int]):
+    non_empty: _Final[bool]
+    x1: _Final[int]
+    y1: _Final[int]
+    x2: _Final[int]
+    y2: _Final[int]
+
+class Channel(Drawable): ...
+
+class ChannelOps(_GObject.GEnum):
+    ADD = 0
+    SUBTRACT = 1
+    REPLACE = 2
+    INTERSECT = 3
+
 class Drawable(Item):
     def get_height(self) -> int: ...
     def get_offsets(self) -> _GetOffsetsResult: ...
@@ -39,6 +54,7 @@ class Image(_GObject.Object):
     def get_width(self) -> int: ...
     def merge_visible_layers(self, merge_type: MergeType) -> Layer | None: ...
     def scale(self, new_width: int, new_height: int) -> bool: ...
+    def select_item(self, operation: ChannelOps, item: Item) -> bool: ...
     def undo_group_end(self) -> bool: ...
     def undo_group_start(self) -> bool: ...
 
@@ -72,6 +88,10 @@ class RunMode(_GObject.GEnum):
     INTERACTIVE = 0
     NONINTERACTIVE = 1
     WITH_LAST_VALS = 2
+
+class Selection(Channel):
+    @staticmethod
+    def bounds(image: Image) -> _SelectionBoundsResult: ...
 
 class ValueArray:
     # PyGObject unpacks the GObject.Value into a Python value

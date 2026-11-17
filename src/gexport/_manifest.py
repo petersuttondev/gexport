@@ -1,4 +1,3 @@
-from abc import ABC
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum, auto, unique
@@ -16,19 +15,25 @@ class Action(Enum):
     LEAVE = auto()
 
 
-class Crop(ABC):
+@final
+@dataclass(frozen=True, slots=True)
+class CropContent:
     pass
 
 
 @final
-class CropBoundingBox(Crop):
-    pass
+@dataclass(frozen=True, slots=True)
+class CropLayer:
+    name: Final[str]
 
 
 @final
-class CropLayer(Crop):
-    def __init__(self, name: str) -> None:
-        self.name: Final = name
+@dataclass(frozen=True, slots=True)
+class CropLayers:
+    pass
+
+
+type Crop = CropContent | CropLayer | CropLayers
 
 
 @final
@@ -403,8 +408,12 @@ def _create_crop_from_model(
     model: models.CropAlgorithm | str | None,
 ) -> Crop | None:
     match model:
-        case models.CropAlgorithm():
-            return CropBoundingBox()
+        case models.CropAlgorithm(algorithm=algorithm):
+            match algorithm:
+                case 'content':
+                    return CropContent()
+                case 'layers':
+                    return CropLayers()
         case str() as name:
             return CropLayer(name)
         case None:
