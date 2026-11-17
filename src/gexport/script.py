@@ -96,7 +96,7 @@ def get_bounding_box(
 
 @final
 @dataclass(frozen=True, kw_only=True, slots=True)
-class ExportMetadata:
+class ExportLayout:
     width: Final[int]
     height: Final[int]
     x_offset: Final[int]
@@ -208,7 +208,7 @@ def _create_export(
     image: Gimp.Image,
     export: Export,
     get_scale_factor: Callable[[str], tuple[float, float]],
-) -> ExportMetadata:
+) -> ExportLayout:
     layers = image.get_layers()
 
     for layer, layer_path in traverse(layers):
@@ -319,7 +319,7 @@ def _create_export(
     # Save the scale the image actually got, not the requested factor. Rounding
     # the size changes it, e.g. 2026px at x0.355457 becomes 720px, x0.355380,
     # and scale_from exports must line up with the image as exported
-    metadata = ExportMetadata(
+    layout = ExportLayout(
         width=image.get_width(),
         height=image.get_height(),
         x_offset=offsets[0],
@@ -335,7 +335,7 @@ def _create_export(
         console.print("[yellow]Warning: exporting empty image[/]")
 
     _save(image, export.path)
-    return metadata
+    return layout
 
 
 def run() -> None:
@@ -386,17 +386,17 @@ def run() -> None:
                         print("Exporting", export.path)
                         export_paths.append(str(export.path))
                         with open_image_duplicate(image) as duplicate:
-                            metadata = _create_export(
+                            layout = _create_export(
                                 duplicate, export, get_scale
                             )
                             db.save_export(
                                 export.path,
-                                metadata.width,
-                                metadata.height,
-                                metadata.x_offset,
-                                metadata.y_offset,
-                                metadata.x_scale,
-                                metadata.y_scale,
+                                layout.width,
+                                layout.height,
+                                layout.x_offset,
+                                layout.y_offset,
+                                layout.x_scale,
+                                layout.y_scale,
                             )
                         print()
 

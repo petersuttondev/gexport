@@ -62,12 +62,12 @@ def _make_export_args(model: _ExportModel) -> ExportArgs:
     )
 
 
-# -- metadata ---------------------------------------------------------------- #
+# -- layout ------------------------------------------------------------------ #
 
 
 @final
 @dataclass(frozen=True, kw_only=True, slots=True)
-class MetadataArgs:
+class LayoutArgs:
     manifest_path: Final[Path]
     database_path: Final[Path | None]
     clean: Final[bool]
@@ -75,25 +75,25 @@ class MetadataArgs:
 
 
 @final
-class _MetadataModel(BaseModel, frozen=True):  # pyright: ignore[reportUninitializedInstanceVariable]
+class _LayoutModel(BaseModel, frozen=True):  # pyright: ignore[reportUninitializedInstanceVariable]
     model_config = ConfigDict(extra="forbid")
-    subcommand: Final[Literal["metadata"]]  # noqa: PYI064
+    subcommand: Final[Literal["layout"]]  # noqa: PYI064
     manifest_path: Final[Path]
     database_path: Final[Path | None]
     clean: Final[bool]
     substrings: Final[list[str]]
 
 
-def _add_metadata_parser(subparsers: Subparsers) -> None:
-    parser = _add_subcommand(subparsers, "metadata")
+def _add_layout_parser(subparsers: Subparsers) -> None:
+    parser = _add_subcommand(subparsers, "layout")
     _add_manifest_argument(parser)
     parser.add_argument("-c", "--clean", action="store_true")
     parser.add_argument("-d", "--database", type=Path, dest="database_path")
     parser.add_argument("substrings", nargs="*")
 
 
-def _make_metadata_args(model: _MetadataModel) -> MetadataArgs:
-    return MetadataArgs(
+def _make_layout_args(model: _LayoutModel) -> LayoutArgs:
+    return LayoutArgs(
         manifest_path=model.manifest_path,
         database_path=model.database_path,
         clean=model.clean,
@@ -126,7 +126,7 @@ def _make_json_schema_args() -> JSONSchemaArgs:
 
 # ---------------------------------------------------------------------------- #
 
-type Args = ExportArgs | MetadataArgs | JSONSchemaArgs
+type Args = ExportArgs | LayoutArgs | JSONSchemaArgs
 
 
 @final
@@ -135,9 +135,7 @@ class _DefaultModel(BaseModel, frozen=True):  # pyright: ignore[reportUninitiali
     subcommand: Final[Literal["default"]]  # noqa: PYI064
 
 
-type _ArgsModel = (
-    _DefaultModel | _ExportModel | _MetadataModel | _JSONSchemaModel
-)
+type _ArgsModel = _DefaultModel | _ExportModel | _LayoutModel | _JSONSchemaModel
 
 
 def make_parser() -> ArgumentParser:
@@ -145,7 +143,7 @@ def make_parser() -> ArgumentParser:
     parser.set_defaults(subcommand="default")
     subparsers = parser.add_subparsers()
     _add_export_parser(subparsers)
-    _add_metadata_parser(subparsers)
+    _add_layout_parser(subparsers)
     _add_json_schema_parser(subparsers)
     return parser
 
@@ -167,8 +165,8 @@ def _make_args(model: _ArgsModel) -> Args:
             )
         case "export":
             return _make_export_args(model)
-        case "metadata":
-            return _make_metadata_args(model)
+        case "layout":
+            return _make_layout_args(model)
         case "json-schema":
             return _make_json_schema_args()
 

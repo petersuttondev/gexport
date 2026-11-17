@@ -62,7 +62,7 @@ Top-level
 
 | Key      | Type   | Required | Description |
 |----------|--------|----------|-------------|
-| database | string | Yes      | Path to a SQLite database where gexport should save export metadata |
+| database | string | Yes      | Path to a SQLite database where gexport should save each export's layout |
 
 ```yaml
 # yaml-language-server: $schema=./gexport-schema.json
