@@ -1,4 +1,5 @@
 from typing import Final as _Final
+
 from gi.repository import Gio as _Gio
 from gi.repository import GObject as _GObject
 

@@ -302,7 +302,7 @@ class XCF(DefaultsMixin, SupportsParent):
 
 
 @final
-class Schema:
+class Manifest:
     def __init__(
         self,
         database_path: Path,
@@ -345,7 +345,7 @@ class Schema:
         raise ValueError(f"No export with ID {id_!r}")
 
 
-def create_action_from_model(
+def _create_action_from_model(
     action_model: models.Action | None,
 ) -> Action | None:
     match action_model:
@@ -359,7 +359,7 @@ def create_action_from_model(
             return None
 
 
-def add_actions_from_model(
+def _add_actions_from_model(
     group: Group,
     group_model: list[models.Group | models.Layer | str]
     | models.Group
@@ -371,23 +371,25 @@ def add_actions_from_model(
     match group_model:
         case list():
             for layer_model in group_model:
-                add_actions_from_model(group, layer_model, action)
+                _add_actions_from_model(group, layer_model, action)
 
         case models.Group():
             group.add_layer(group_model.group, action)
             child_group = group.add_group(
                 group_model.group,
-                default_action=create_action_from_model(group_model.default),
+                default_action=_create_action_from_model(group_model.default),
             )
-            add_actions_from_model(child_group, group_model.show, Action.SHOW)
-            add_actions_from_model(child_group, group_model.hide, Action.HIDE)
-            add_actions_from_model(child_group, group_model.leave, Action.LEAVE)
+            _add_actions_from_model(child_group, group_model.show, Action.SHOW)
+            _add_actions_from_model(child_group, group_model.hide, Action.HIDE)
+            _add_actions_from_model(
+                child_group, group_model.leave, Action.LEAVE
+            )
 
         case models.Layer(layer=name, mask=mask):
             group.add_layer(
                 name,
                 action=action,
-                mask=create_action_from_model(mask),
+                mask=_create_action_from_model(mask),
             )
 
         case str():
@@ -397,7 +399,7 @@ def add_actions_from_model(
             pass
 
 
-def create_crop_from_model(
+def _create_crop_from_model(
     model: models.CropAlgorithm | str | None,
 ) -> Crop | None:
     match model:
@@ -409,7 +411,7 @@ def create_crop_from_model(
             return None
 
 
-def create_resize_from_model(
+def _create_resize_from_model(
     model: models.ScaleFrom | models.WidthHeight | float | None,
 ) -> Resize | None:
     match model:
@@ -443,7 +445,7 @@ def _expand_export_path(
     )
 
 
-def add_export_from_model(
+def _add_export_from_model(
     root_dir: Path,
     xcf: XCF,
     export_path: Path,
@@ -453,27 +455,27 @@ def add_export_from_model(
         _expand_export_path(root_dir, xcf.path, export_path),
         id=export_model.id,
         origin=export_model.origin,
-        default_action=create_action_from_model(export_model.default),
-        default_crop=create_crop_from_model(export_model.crop),
-        default_resize=create_resize_from_model(export_model.resize),
+        default_action=_create_action_from_model(export_model.default),
+        default_crop=_create_crop_from_model(export_model.crop),
+        default_resize=_create_resize_from_model(export_model.resize),
     )
 
-    add_actions_from_model(export.root, export_model.show, Action.SHOW)
-    add_actions_from_model(export.root, export_model.hide, Action.HIDE)
-    add_actions_from_model(export.root, export_model.leave, Action.LEAVE)
+    _add_actions_from_model(export.root, export_model.show, Action.SHOW)
+    _add_actions_from_model(export.root, export_model.hide, Action.HIDE)
+    _add_actions_from_model(export.root, export_model.leave, Action.LEAVE)
     return export
 
 
-def add_xcf_from_model(
+def _add_xcf_from_model(
     root_dir: Path,
-    schema: Schema,
+    manifest: Manifest,
     xcf_path: Path,
     xcf_model: models.XCF,
 ) -> XCF:
-    xcf = schema.add_xcf(
+    xcf = manifest.add_xcf(
         root_dir / xcf_path,
-        default_action=create_action_from_model(xcf_model.default),
-        default_resize=create_resize_from_model(xcf_model.resize),
+        default_action=_create_action_from_model(xcf_model.default),
+        default_resize=_create_resize_from_model(xcf_model.resize),
     )
 
     exports_model = xcf_model.exports
@@ -484,7 +486,7 @@ def add_xcf_from_model(
     match exports_model:
         case dict():
             for export_path, export_model in exports_model.items():
-                add_export_from_model(root_dir, xcf, export_path, export_model)
+                _add_export_from_model(root_dir, xcf, export_path, export_model)
         case list():
             for export_path in exports_model:
                 add_export_from_path(export_path)
@@ -496,32 +498,32 @@ def add_xcf_from_model(
     return xcf
 
 
-def create_schema_from_model(
-    schema_path: Path,
-    schema_model: models.Schema,
-) -> Schema:
-    root_dir = schema_path.resolve(strict=True).parent
+def _create_manifest_from_model(
+    manifest_path: Path,
+    manifest_model: models.Manifest,
+) -> Manifest:
+    root_dir = manifest_path.resolve(strict=True).parent
 
-    schema = Schema(
-        root_dir / schema_model.database,
-        default_crop=create_crop_from_model(schema_model.crop),
-        default_resize=create_resize_from_model(schema_model.resize),
+    manifest = Manifest(
+        root_dir / manifest_model.database,
+        default_crop=_create_crop_from_model(manifest_model.crop),
+        default_resize=_create_resize_from_model(manifest_model.resize),
     )
 
-    if schema_model.xcfs is not None:
-        for xcf_path, xcf_model in schema_model.xcfs.items():
-            add_xcf_from_model(root_dir, schema, xcf_path, xcf_model)
+    if manifest_model.xcfs is not None:
+        for xcf_path, xcf_model in manifest_model.xcfs.items():
+            _add_xcf_from_model(root_dir, manifest, xcf_path, xcf_model)
 
-    return schema
+    return manifest
 
 
-def load_schema(path: Path) -> Schema:
-    schema = create_schema_from_model(path, models.load_schema(path))
+def load_manifest(path: Path) -> Manifest:
+    manifest = _create_manifest_from_model(path, models.load_manifest(path))
     export_ids: set[str] = set()
-    for xcf in schema.xcfs.values():
+    for xcf in manifest.xcfs.values():
         for export in xcf.exports.values():
             if export.id is not None:
                 if export.id in export_ids:
                     raise ValueError(f"Duplicate export ID {export.id!r}")
                 export_ids.add(export.id)
-    return schema
+    return manifest

@@ -21,7 +21,6 @@ class Action(Enum):
 @final
 class Layer(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
     layer: str
     mask: Action | SkipJsonSchema[None] = None
 
@@ -29,7 +28,6 @@ class Layer(BaseModel):
 @final
 class Group(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
     group: str
     default: Action | SkipJsonSchema[None] = None
     show: list[Group | Layer | str] | Group | Layer | str | None = None
@@ -40,21 +38,18 @@ class Group(BaseModel):
 @final
 class CropAlgorithm(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
     algorithm: Literal["bounding-box"]
 
 
 @final
 class ScaleFrom(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
     scale_from: str
 
 
 @final
 class WidthHeight(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
     width: int | SkipJsonSchema[None] = None
     height: int | SkipJsonSchema[None] = None
     allow_scale_up: bool | SkipJsonSchema[None] = None
@@ -63,7 +58,6 @@ class WidthHeight(BaseModel):
 @final
 class Export(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
     id: str | SkipJsonSchema[None] = None
     origin: Annotated[str | SkipJsonSchema[None], Field(default=None)]
     crop: CropAlgorithm | str | SkipJsonSchema[None] = None
@@ -83,7 +77,6 @@ class Export(BaseModel):
 @final
 class XCF(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
     default: Action | SkipJsonSchema[None] = None
     exports: dict[Path, Export] | list[Path] | Path | SkipJsonSchema[None] = (
         None
@@ -92,15 +85,14 @@ class XCF(BaseModel):
 
 
 @final
-class Schema(BaseModel):
+class Manifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
     database: Path
     crop: CropAlgorithm | str | SkipJsonSchema[None] = None
     resize: ScaleFrom | WidthHeight | float | SkipJsonSchema[None] = None
     xcfs: dict[Path, XCF] | SkipJsonSchema[None] = None
 
 
-def load_schema(path: Path) -> Schema:
-    with open(path) as schema_file:
-        return Schema(**yaml.safe_load(schema_file))  # pyright: ignore[reportAny]
+def load_manifest(path: Path) -> Manifest:
+    with open(path) as manifest_file:
+        return Manifest(**yaml.safe_load(manifest_file))  # pyright: ignore[reportAny]

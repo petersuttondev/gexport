@@ -9,13 +9,13 @@ from gexport.util import suppress_unhandled
 
 
 def _export_subcommand(args: ExportArgs) -> None:
-    gimp = GIMP(schema_path=args.schema_path, substrings=args.substrings)
+    gimp = GIMP(manifest_path=args.manifest_path, substrings=args.substrings)
     print(gimp.make_shell_command())
     gimp.exec()
 
 
 def _json_schema_subcommand() -> None:
-    json.dump(models.Schema.model_json_schema(), sys.stdout, indent=2)
+    json.dump(models.Manifest.model_json_schema(), sys.stdout, indent=2)
 
 
 def _metadata_subcommand(args: MetadataArgs) -> None:
@@ -23,10 +23,10 @@ def _metadata_subcommand(args: MetadataArgs) -> None:
     from rich.table import Column, Table
 
     if args.database_path is None:
-        schema_path = args.schema_path
+        manifest_path = args.manifest_path
         database_path = (
-            schema_path.resolve(strict=True).parent
-            / models.load_schema(schema_path).database
+            manifest_path.resolve(strict=True).parent
+            / models.load_manifest(manifest_path).database
         )
     else:
         database_path = args.database_path

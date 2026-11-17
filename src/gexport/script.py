@@ -12,8 +12,7 @@ gi.require_version("Gimp", "3.0")
 from gi.repository import Gimp, Gio  # pyright: ignore[reportMissingModuleSource]
 from rich.console import Console
 
-from gexport.databaselib import open_database
-from gexport.schemalib import (
+from gexport._manifest import (
     Action,
     CropBoundingBox,
     CropLayer,
@@ -22,8 +21,9 @@ from gexport.schemalib import (
     Scale,
     ScaleFrom,
     WidthHeight,
-    load_schema,
+    load_manifest,
 )
+from gexport.databaselib import open_database
 from gexport.util import open_image, open_image_duplicate, traverse
 
 console: Final = Console()
@@ -332,15 +332,15 @@ def _create_export(
     # transparent pixels. Enabling Sharp YUV leaks this colour into edges.
     # Erase backdrop colour by flatten ourselves.
     if image.merge_visible_layers(Gimp.MergeType.CLIP_TO_IMAGE) is None:
-        console.print('[yellow]Warning: exporting empty image[/]')
+        console.print("[yellow]Warning: exporting empty image[/]")
 
     _save(image, export.path)
     return metadata
 
 
 def run() -> None:
-    schema_path = Path(os.environ["GEXPORT_SCHEMA"])
-    schema = load_schema(Path(schema_path))
+    manifest_path = Path(os.environ["GEXPORT_MANIFEST"])
+    manifest = load_manifest(Path(manifest_path))
 
     if "GEXPORT_SUBSTRINGS" in os.environ:
         json_substrings = cast(
@@ -364,18 +364,20 @@ def run() -> None:
 
     export_paths: list[str] = []
 
-    with open_database(schema.database_path) as db:
+    with open_database(manifest.database_path) as db:
 
         def get_scale(id_: str) -> tuple[float, float]:
-            return db.get_scale(schema.get_export_by_id(id_).path)
+            return db.get_scale(manifest.get_export_by_id(id_).path)
 
-        for xcf in schema.xcfs.values():
+        for xcf in manifest.xcfs.values():
             graph: dict[Export, set[Export]] = {
                 export: set() for export in xcf.exports.values()
             }
             for export in xcf.exports.values():
                 if isinstance(export.resize, ScaleFrom):
-                    graph[export].add(schema.get_export_by_id(export.resize.id))
+                    graph[export].add(
+                        manifest.get_export_by_id(export.resize.id)
+                    )
             exports = graphlib.TopologicalSorter(graph).static_order()
             with open_image(xcf.path) as image:
                 for export in exports:

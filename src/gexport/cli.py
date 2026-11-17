@@ -13,16 +13,16 @@ if TYPE_CHECKING:
 
 type Subparsers = _SubParsersAction[ArgumentParser]
 
-_DEFAULT_SCHEMA_PATH: Final[Path] = Path("gexport.yaml")
+_DEFAULT_MANIFEST_PATH: Final[Path] = Path("gexport.yaml")
 
 
-def _add_schema_argument(parser: ArgumentParser) -> None:
+def _add_manifest_argument(parser: ArgumentParser) -> None:
     parser.add_argument(
-        "-s",
-        "--schema",
-        default=_DEFAULT_SCHEMA_PATH,
+        "-m",
+        "--manifest",
+        default=_DEFAULT_MANIFEST_PATH,
         type=Path,
-        dest="schema_path",
+        dest="manifest_path",
     )
 
 
@@ -38,7 +38,7 @@ def _add_subcommand(subparsers: Subparsers, subcommand: str) -> ArgumentParser:
 @final
 @dataclass(frozen=True, kw_only=True, slots=True)
 class ExportArgs:
-    schema_path: Final[Path]
+    manifest_path: Final[Path]
     substrings: Final[tuple[str, ...]]
 
 
@@ -46,19 +46,19 @@ class ExportArgs:
 class _ExportModel(BaseModel, frozen=True):  # pyright: ignore[reportUninitializedInstanceVariable]
     model_config = ConfigDict(extra="forbid")
     subcommand: Final[Literal["export"]]  # noqa: PYI064
-    schema_path: Final[Path]
+    manifest_path: Final[Path]
     substrings: Final[list[str]]
 
 
 def _add_export_parser(subparsers: Subparsers) -> None:
     parser = _add_subcommand(subparsers, "export")
-    _add_schema_argument(parser)
+    _add_manifest_argument(parser)
     parser.add_argument("substrings", nargs="*")
 
 
 def _make_export_args(model: _ExportModel) -> ExportArgs:
     return ExportArgs(
-        schema_path=model.schema_path, substrings=tuple(model.substrings)
+        manifest_path=model.manifest_path, substrings=tuple(model.substrings)
     )
 
 
@@ -68,7 +68,7 @@ def _make_export_args(model: _ExportModel) -> ExportArgs:
 @final
 @dataclass(frozen=True, kw_only=True, slots=True)
 class MetadataArgs:
-    schema_path: Final[Path]
+    manifest_path: Final[Path]
     database_path: Final[Path | None]
     clean: Final[bool]
     substrings: Final[tuple[str, ...]]
@@ -78,7 +78,7 @@ class MetadataArgs:
 class _MetadataModel(BaseModel, frozen=True):  # pyright: ignore[reportUninitializedInstanceVariable]
     model_config = ConfigDict(extra="forbid")
     subcommand: Final[Literal["metadata"]]  # noqa: PYI064
-    schema_path: Final[Path]
+    manifest_path: Final[Path]
     database_path: Final[Path | None]
     clean: Final[bool]
     substrings: Final[list[str]]
@@ -86,7 +86,7 @@ class _MetadataModel(BaseModel, frozen=True):  # pyright: ignore[reportUninitial
 
 def _add_metadata_parser(subparsers: Subparsers) -> None:
     parser = _add_subcommand(subparsers, "metadata")
-    _add_schema_argument(parser)
+    _add_manifest_argument(parser)
     parser.add_argument("-c", "--clean", action="store_true")
     parser.add_argument("-d", "--database", type=Path, dest="database_path")
     parser.add_argument("substrings", nargs="*")
@@ -94,7 +94,7 @@ def _add_metadata_parser(subparsers: Subparsers) -> None:
 
 def _make_metadata_args(model: _MetadataModel) -> MetadataArgs:
     return MetadataArgs(
-        schema_path=model.schema_path,
+        manifest_path=model.manifest_path,
         database_path=model.database_path,
         clean=model.clean,
         substrings=tuple(model.substrings),
@@ -162,7 +162,9 @@ def _make_model(ns: Namespace) -> _ArgsModel:
 def _make_args(model: _ArgsModel) -> Args:
     match model.subcommand:
         case "default":
-            return ExportArgs(schema_path=_DEFAULT_SCHEMA_PATH, substrings=())
+            return ExportArgs(
+                manifest_path=_DEFAULT_MANIFEST_PATH, substrings=()
+            )
         case "export":
             return _make_export_args(model)
         case "metadata":

@@ -34,14 +34,14 @@ class GIMP:
         batch: str | None = None,
         dump_path: Path | None = None,
         results_path: Path | None = None,
-        schema_path: Path | None = None,
+        manifest_path: Path | None = None,
         substrings: Iterable[str] | None = None,
         xcf_path: Path | None = None,
     ) -> None:
         self.batch = batch
         self.dump_path = dump_path
         self.results_path = results_path
-        self.schema_path = schema_path
+        self.manifest_path = manifest_path
         self.substrings = substrings
         self.xcf_path = xcf_path
 
@@ -79,8 +79,8 @@ class GIMP:
         if self.results_path is not None:
             env["GEXPORT_RESULTS"] = str(self.results_path)
 
-        if self.schema_path is not None:
-            env["GEXPORT_SCHEMA"] = str(self.schema_path)
+        if self.manifest_path is not None:
+            env["GEXPORT_MANIFEST"] = str(self.manifest_path)
 
         if self.substrings:
             env["GEXPORT_SUBSTRINGS"] = json.dumps(self.substrings)

@@ -1,11 +1,11 @@
 # gexport
 
-**Make-like export tool for GIMP**
+**Manifest-driven batch post-process and exporter for GIMP**
 
 Write a simple YAML file that tells `gexport` how to export, scale and crop
 multiple images from your complex GIMP projects.
 
-![gexport exporting multiple images from a complex GIMP project using a YAML schema](.github/gexport-diagram.webp)
+![gexport exporting multiple images from a complex GIMP project using a YAML manifest](.github/gexport-diagram.webp)
 
 **Check out the [examples](https://github.com/petersuttondev/gexport-examples)**
 
@@ -55,8 +55,8 @@ project-a.png project-b.png
 ```
 
 ## Documentation
-This describes the structure of gexport's YAML schema
-All paths are relative to
+This describes the structure of gexport's YAML manifest. All paths are relative
+to the directory containing the manifest.
 
 Top-level
 
