@@ -126,6 +126,15 @@ def _get_crop_layers_bbox(
     )
 
 
+def _rasterize_all_visible_vector_layers(image: Gimp.Image) -> None:
+    for layer, _ in traverse(
+        image.get_layers(), include=lambda layer: layer.get_visible()
+    ):
+        if isinstance(layer, Gimp.VectorLayer) and not layer.is_rasterized():  # noqa: SIM102
+            if not layer.rasterize():
+                raise RuntimeError(f"Failed to rasterize {layer.get_name()!r}")
+
+
 def _crop(export: Export, image: Gimp.Image) -> _Offsets:
     match export.crop:
         case CropContent():
@@ -297,6 +306,8 @@ def _create_export(
         path = " → ".join(layer_path)
         console.print(f"[{color}]{path}{mask}[/{color}]")
 
+    # GIMP 3.2.8 mishandles vector layers when cropping and scaling.
+    _rasterize_all_visible_vector_layers(image)
     offsets = _crop(export, image)
     cropped_width = image.get_width()
     cropped_height = image.get_height()

@@ -410,9 +410,9 @@ def _create_crop_from_model(
     match model:
         case models.CropAlgorithm(algorithm=algorithm):
             match algorithm:
-                case 'content':
+                case "content":
                     return CropContent()
-                case 'layers':
+                case "layers":
                     return CropLayers()
         case str() as name:
             return CropLayer(name)

@@ -27,42 +27,28 @@ def clean(dry_run: bool = False) -> None:
 
 
 @task
-def install(break_system_packages: bool = False) -> None:
+def install() -> None:
     import subprocess
 
     subprocess.run(
-        _args(
-            ("pip", "install"),
-            ("--break-system-packages",) if break_system_packages else (),
-            ("--config-settings", "editable_mode=strict"),
-            ("--editable", "."),
-        ),
-        cwd=_get_project_dir(),
+        ("uv", "tool", "install", "--editable", _get_project_dir()),
         check=True,
     )
 
 
 @task
-def uninstall(break_system_packages: bool = False) -> None:
+def uninstall() -> None:
     import subprocess
 
-    subprocess.run(
-        _args(
-            "pip",
-            "uninstall",
-            ("--break-system-packages",) if break_system_packages else (),
-            "--yes",
-            "gexport",
-        ),
-        cwd=_get_project_dir(),
-        check=True,
-    )
+    subprocess.run(("uv", "tool", "uninstall", "gexport"), check=True)
+
 
 @task
 def completion() -> None:
     import shtab
 
-    print(shtab.complete(make_parser(), shell='zsh'), end='', flush=True)
+    print(shtab.complete(make_parser(), shell="zsh"), end="", flush=True)
+
 
 # -- Utilities -----------------------------------------------------------------
 
