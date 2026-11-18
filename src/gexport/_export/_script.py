@@ -1,18 +1,14 @@
 import graphlib
-import os
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, NamedTuple, final
 
-import gi
-
-from gexport._env import GexportEnv
-
-gi.require_version("Gimp", "3.0")
-from gi.repository import Gimp, Gio  # pyright: ignore[reportMissingModuleSource]
 from rich.console import Console
 
+from gexport._export._gi import Gimp, Gio
+from gexport._export._ipc import load_export_request, write_export_response
+from gexport._export._util import open_duplicate, open_image, traverse
 from gexport._manifest import (
     Action,
     CropContent,
@@ -26,7 +22,6 @@ from gexport._manifest import (
     load_manifest,
 )
 from gexport.databaselib import open_database
-from gexport.util import open_image, open_image_duplicate, traverse
 
 console: Final = Console()
 
@@ -70,7 +65,7 @@ class _Offsets(NamedTuple):
 
 
 def _get_crop_content_bbox(image: Gimp.Image) -> _BoundingBox:
-    with open_image_duplicate(image) as flat:
+    with open_duplicate(image) as flat:
         layer = flat.merge_visible_layers(Gimp.MergeType.CLIP_TO_IMAGE)
         if layer is None:
             raise ValueError("Cannot crop to content. No visible layers")
@@ -363,9 +358,9 @@ def _create_export(
 
 
 def run() -> None:
-    env = GexportEnv.model_validate_json(os.environ["GEXPORT_ENV"])
-    manifest = load_manifest(env.manifest)
-    substrings = env.substrings
+    request = load_export_request()
+    manifest = load_manifest(request.manifest_path)
+    substrings = request.substrings
 
     if substrings:
 
@@ -379,6 +374,7 @@ def run() -> None:
             del path
             return True
 
+    export_paths: list[Path] = []
     with open_database(manifest.database_path) as db:
 
         def get_scale(id_: str) -> tuple[float, float]:
@@ -399,7 +395,8 @@ def run() -> None:
                     if should_export(export.path):
                         validate(export, image)
                         print("Exporting", export.path)
-                        with open_image_duplicate(image) as duplicate:
+                        export_paths.append(export.path)
+                        with open_duplicate(image) as duplicate:
                             layout = _create_export(
                                 duplicate, export, get_scale
                             )
@@ -413,3 +410,5 @@ def run() -> None:
                                 layout.y_scale,
                             )
                         print()
+
+    write_export_response(export_paths, request.working_dir)

@@ -1,4 +1,4 @@
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable
 from pathlib import Path
 
 from rich.console import Console
@@ -26,23 +26,15 @@ def _fetch_exports(
         return list(db.iter_exports())
 
 
-def _filter_exports(
-    exports: list[Export], substrings: Sequence[str]
-) -> list[Export]:
-    if not substrings:
-        return exports
-    return [r for r in exports if any(s in r.path.stem for s in substrings)]
-
-
 def _create_table(exports: Iterable[Export]) -> Table:
     table = Table(
         Column("Name", justify="right"),
-        "W",
-        "H",
-        "X←",
-        "Y↑",
-        "X→",
-        "Y↓",
+        Column("W", justify="right"),
+        Column("H", justify="right"),
+        Column("X←", justify="right"),
+        Column("Y↑", justify="right"),
+        Column("X→", justify="right"),
+        Column("Y↓", justify="right"),
         "X",
         "Y",
         title="Exports",
@@ -72,11 +64,37 @@ def _create_table(exports: Iterable[Export]) -> Table:
     return table
 
 
+def print_layout_table(
+    database_path: Path,
+    *,
+    include_export: Callable[[Export], bool] | None = None,
+    remove_layouts_without_files: bool = False,
+) -> None:
+    if include_export is None:
+        include_export = lambda _: True
+    exports = [
+        export
+        for export in _fetch_exports(
+            database_path,
+            remove_layouts_without_files=remove_layouts_without_files,
+        )
+        if include_export(export)
+    ]
+    Console().print(_create_table(exports))
+
+
 def layout_subcommand(args: LayoutArgs) -> None:
-    database_path = _get_database_path(args)
-    exports = _fetch_exports(
-        database_path, remove_layouts_without_files=args.clean
+    print_layout_table(
+        _get_database_path(args),
+        include_export=(
+            (
+                lambda export: any(
+                    substring in export.path.stem
+                    for substring in args.substrings
+                )
+            )
+            if args.substrings
+            else None
+        ),
+        remove_layouts_without_files=args.clean,
     )
-    exports = _filter_exports(exports, args.substrings)
-    table = _create_table(exports)
-    Console().print(table)

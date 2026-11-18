@@ -100,6 +100,7 @@ dependencies = [
     { name = "pygobject" },
     { name = "pyyaml" },
     { name = "rich" },
+    { name = "suppress-unhandled" },
 ]
 
 [package.dev-dependencies]
@@ -114,6 +115,7 @@ requires-dist = [
     { name = "pygobject" },
     { name = "pyyaml" },
     { name = "rich" },
+    { name = "suppress-unhandled", specifier = ">=0.3.1" },
 ]
 
 [package.metadata.requires-dev]
@@ -368,6 +370,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e8/c4/ba2f8066cceb6f23394729afe52f3bf7adec04bf9ed2c820b39e19299111/sortedcontainers-2.4.0.tar.gz", hash = "sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88", size = 30594, upload-time = "2021-05-16T22:03:42.897Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/32/46/9cb0e58b2deb7f82b84065f37f3bffeb12413f947f9388e4cac22c4621ce/sortedcontainers-2.4.0-py2.py3-none-any.whl", hash = "sha256:a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0", size = 29575, upload-time = "2021-05-16T22:03:41.177Z" },
+]
+
+[[package]]
+name = "suppress-unhandled"
+version = "0.3.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f3/1d/eae53b49a3891af32f4e8d80cbf7e813fa602f566fc9fe41269fe5917003/suppress_unhandled-0.3.1.tar.gz", hash = "sha256:c0b512be54594fa178561c26ea752c44a98521a7dba21bc2b9a267c842ffe9fe", size = 4137, upload-time = "2026-10-23T09:50:22.158Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/eb/f4/ae8492c3c714cba5a81ff98125d8f641c643f5747074d45c1704ea8ce856/suppress_unhandled-0.3.1-py3-none-any.whl", hash = "sha256:9d6fed86a4646d4e6d44cf429698ce6e2fbb291cbf094feb553636b605e101f1", size = 3740, upload-time = "2026-10-23T09:50:21.05Z" },
 ]
 
 [[package]]

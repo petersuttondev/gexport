@@ -5,7 +5,13 @@ description = "Manifest-driven batch post-process and exporter for GIMP"
 readme = "README.md"
 authors = [{ name = "Peter Sutton", email = "peter@foxdogstudios.com" }]
 requires-python = ">=3.14"
-dependencies = ["PyGObject", "pydantic", "pyyaml", "rich"]
+dependencies = [
+    "PyGObject",
+    "pydantic",
+    "pyyaml",
+    "rich",
+    "suppress-unhandled>=0.3.1",
+]
 
 [dependency-groups]
 dev = [
