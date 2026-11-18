@@ -1,20 +1,23 @@
 import graphlib
-from collections.abc import Callable, Iterable
-from dataclasses import dataclass
+from collections.abc import Callable
 from pathlib import Path
-from typing import Final, NamedTuple, final
+from typing import Final
 
 from rich.console import Console
 
+from gexport._export._crop import crop
 from gexport._export._gi import Gimp
 from gexport._export._ipc import load_export_request, write_export_response
+from gexport._export._layout import Layout, Offsets, Span
 from gexport._export._save import save_image
-from gexport._export._util import open_duplicate, open_image, traverse
+from gexport._export._util import (
+    open_duplicate,
+    open_image,
+    rasterize_all_visible_vector_layers,
+    traverse,
+)
 from gexport._manifest import (
     Action,
-    CropContent,
-    CropLayer,
-    CropLayers,
     Export,
     Group,
     Scale,
@@ -51,147 +54,15 @@ def validate(export: Export, image: Gimp.Image):
 # ---------------------------------------------------------------------------- #
 
 
-@final
-class _BoundingBox(NamedTuple):
-    width: int
-    height: int
-    x_offset: int
-    y_offset: int
-
-
-@final
-class _Offsets(NamedTuple):
-    x: int
-    y: int
-
-
-def _get_crop_content_bbox(image: Gimp.Image) -> _BoundingBox:
-    with open_duplicate(image) as flat:
-        layer = flat.merge_visible_layers(Gimp.MergeType.CLIP_TO_IMAGE)
-        if layer is None:
-            raise ValueError("Cannot crop to content. No visible layers")
-        flat.select_item(Gimp.ChannelOps.REPLACE, layer)
-        _, non_empty, x1, y1, x2, y2 = Gimp.Selection.bounds(flat)
-    if not non_empty:
-        raise ValueError("Cannot crop to content. Image is transparent")
-    return _BoundingBox(width=x2 - x1, height=y2 - y1, x_offset=x1, y_offset=y1)
-
-
-def _get_crop_layer_bbox(image: Gimp.Image, layer_name: str) -> _BoundingBox:
-    layer = image.get_layer_by_name(layer_name)
-
-    if layer is None:
-        raise ValueError(
-            f"Failed to get crop_to layer. No layer named {layer_name!r}",
-        )
-
-    _, x_offset, y_offset = layer.get_offsets()
-
-    return _BoundingBox(
-        layer.get_width(),
-        layer.get_height(),
-        max(x_offset, 0),
-        max(y_offset, 0),
-    )
-
-
-def _get_crop_layers_bbox(
-    image: Gimp.Image,
-    layers: Iterable[Gimp.Layer],
-) -> _BoundingBox:
-    min_left = max_width = image.get_width()
-    min_top = max_height = image.get_height()
-    max_right = max_bottom = 0
-    for layer, _ in traverse(layers, lambda layer: layer.get_visible()):
-        if not isinstance(layer, Gimp.GroupLayer):
-            _, left, top = layer.get_offsets()
-            min_left = min(left, min_left)
-            min_top = min(top, min_top)
-            max_right = max(left + layer.get_width(), max_right)
-            max_bottom = max(top + layer.get_height(), max_bottom)
-    if max_right < min_left or max_bottom < min_top:
-        raise ValueError("Cannot find bounding box")
-    min_left = max(min_left, 0)
-    min_top = max(min_top, 0)
-    max_right = min(max_right, max_width)
-    max_bottom = min(max_bottom, max_height)
-    return _BoundingBox(
-        width=max_right - min_left,
-        height=max_bottom - min_top,
-        x_offset=min_left,
-        y_offset=min_top,
-    )
-
-
-def _rasterize_all_visible_vector_layers(image: Gimp.Image) -> None:
-    for layer, _ in traverse(
-        image.get_layers(), include=lambda layer: layer.get_visible()
-    ):
-        if isinstance(layer, Gimp.VectorLayer) and not layer.is_rasterized():  # noqa: SIM102
-            if not layer.rasterize():
-                raise RuntimeError(f"Failed to rasterize {layer.get_name()!r}")
-
-
-def _crop(export: Export, image: Gimp.Image) -> _Offsets:
-    match export.crop:
-        case CropContent():
-            crop_name = "content"
-            bbox = _get_crop_content_bbox(image)
-        case CropLayer(name=crop_name):
-            bbox = _get_crop_layer_bbox(image, crop_name)
-        case CropLayers():
-            crop_name = "layers"
-            bbox = _get_crop_layers_bbox(image, image.get_layers())
-        case None:
-            crop_name = "none"
-            bbox = None
-
-    if export.origin is None:
-        origin = (0, 0)
-    else:
-        origin_layer = image.get_layer_by_name(export.origin)
-        assert origin_layer is not None
-        _, x_origin, y_origin = origin_layer.get_offsets()
-        origin = max(x_origin, 0), max(y_origin, 0)
-
-    if bbox is None:
-        offsets = _Offsets(-origin[0], -origin[1])
-    else:
-        offsets = _Offsets(bbox.x_offset - origin[0], bbox.y_offset - origin[1])
-        print(
-            f"Cropping to {crop_name}: {bbox.width}x{bbox.height}+{bbox.x_offset}+{bbox.y_offset}",
-        )
-        image.crop(*bbox)
-
-    return offsets
-
-
-@final
-@dataclass(frozen=True, kw_only=True, slots=True)
-class ExportLayout:
-    width: Final[int]
-    height: Final[int]
-    x_offset: Final[int]
-    y_offset: Final[int]
-    x_scale: Final[float]
-    y_scale: Final[float]
-
-
-@final
-class _Span(NamedTuple):
-    length: int
-    offset: int
-
-
-def _scale_span(factor: float, length: int, offset: int) -> _Span:
+def _scale_span(factor: float, length: int, offset: int) -> Span:
     start = round(factor * offset)
     end = round(factor * (length + offset))
-    return _Span(end - start, start)
+    return Span(end - start, start)
 
 
 def _log_scale(
     scaled_image: Gimp.Image,
-    offsets: _Offsets,
+    offsets: Offsets,
     x_factor: float,
     y_factor: float,
 ) -> None:
@@ -205,10 +76,10 @@ def _scale(
     image: Gimp.Image,
     x_factor: float,
     y_factor: float,
-    offsets: _Offsets,
+    offsets: Offsets,
     width: int | None = None,
     height: int | None = None,
-) -> _Offsets:
+) -> Offsets:
     x_span = _scale_span(x_factor, image.get_width(), offsets.x)
     y_span = _scale_span(y_factor, image.get_height(), offsets.y)
     # A requested width or height is exact. Spans can be off by one when the
@@ -218,7 +89,7 @@ def _scale(
         y_span.length if height is None else height,
     ):
         raise RuntimeError("Scale failed")
-    offsets = _Offsets(x_span.offset, y_span.offset)
+    offsets = Offsets(x_span.offset, y_span.offset)
     _log_scale(image, offsets, x_factor, y_factor)
     return offsets
 
@@ -228,7 +99,7 @@ def _create_export(
     export: Export,
     working_dir: Path,
     get_scale_factor: Callable[[str], tuple[float, float]],
-) -> ExportLayout:
+) -> Layout:
     layers = image.get_layers()
 
     for layer, layer_path in traverse(layers):
@@ -258,8 +129,8 @@ def _create_export(
         console.print(f"[{color}]{path}{mask}[/{color}]")
 
     # GIMP 3.2.8 mishandles vector layers when cropping and scaling.
-    _rasterize_all_visible_vector_layers(image)
-    offsets = _crop(export, image)
+    rasterize_all_visible_vector_layers(image)
+    offsets = crop(export, image)
     cropped_width = image.get_width()
     cropped_height = image.get_height()
 
@@ -293,7 +164,7 @@ def _create_export(
     # Save the scale the image actually got, not the requested factor. Rounding
     # the size changes it, e.g. 2026px at x0.355457 becomes 720px, x0.355380,
     # and scale_from exports must line up with the image as exported
-    layout = ExportLayout(
+    layout = Layout(
         width=image.get_width(),
         height=image.get_height(),
         x_offset=offsets[0],

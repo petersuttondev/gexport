@@ -30,6 +30,15 @@ def open_duplicate(image: Gimp.Image) -> Generator[Gimp.Image]:
         duplicate.delete()
 
 
+def rasterize_all_visible_vector_layers(image: Gimp.Image) -> None:
+    for layer, _ in traverse(
+        image.get_layers(), include=lambda layer: layer.get_visible()
+    ):
+        if isinstance(layer, Gimp.VectorLayer) and not layer.is_rasterized():  # noqa: SIM102
+            if not layer.rasterize():
+                raise RuntimeError(f"Failed to rasterize {layer.get_name()!r}")
+
+
 def _traverse(
     layers: Iterable[Gimp.Item],
     include: Callable[[Gimp.Layer], bool],
