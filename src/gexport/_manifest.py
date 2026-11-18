@@ -68,7 +68,7 @@ class SupportsParent(Protocol):
     def default_action(self) -> Action: ...
 
     @property
-    def default_crop(self) -> Crop | None: ...
+    def default_crops(self) -> tuple[Crop, ...] | None: ...
 
     @property
     def default_mask(self) -> Action: ...
@@ -105,13 +105,13 @@ class DefaultsMixin(SupportsParent):
         self,
         parent: SupportsParent,
         default_action: Action | None = None,
-        default_crop: Crop | None = None,
+        default_crops: tuple[Crop, ...] | None = None,
         default_mask: Action | None = None,
         default_resize: Resize | None = None,
     ) -> None:
         self.parent: Final = parent
         self._default_action: Final = default_action
-        self._default_crop: Final = default_crop
+        self._default_crops: Final[tuple[Crop, ...] | None] = default_crops
         self._default_mask: Final = default_mask
         self._default_resize: Final = default_resize
 
@@ -122,8 +122,12 @@ class DefaultsMixin(SupportsParent):
 
     @property
     @override
-    def default_crop(self) -> Crop | None:
-        return self._default_crop or self.parent.default_crop
+    def default_crops(self) -> tuple[Crop, ...] | None:
+        return (
+            self.parent.default_crops
+            if self._default_crops is None
+            else self._default_crops
+        )
 
     @property
     @override
@@ -146,14 +150,14 @@ class Group(DefaultsMixin, SupportsParent):
         self,
         parent: SupportsParent,
         default_action: Action | None = None,
-        default_crop: Crop | None = None,
+        default_crops: tuple[Crop, ...] | None = None,
         default_mask: Action | None = None,
         default_resize: Resize | None = None,
     ) -> None:
         super().__init__(
             parent,
             default_action,
-            default_crop,
+            default_crops,
             default_mask,
             default_resize,
         )
@@ -174,7 +178,7 @@ class Group(DefaultsMixin, SupportsParent):
         self,
         name: str,
         default_action: Action | None = None,
-        default_crop: Crop | None = None,
+        default_crops: tuple[Crop, ...] | None = None,
         default_mask: Action | None = None,
         default_resize: Resize | None = None,
     ) -> Group:
@@ -186,7 +190,7 @@ class Group(DefaultsMixin, SupportsParent):
         group = Group(
             self,
             default_action=default_action,
-            default_crop=default_crop,
+            default_crops=default_crops,
             default_mask=default_mask,
             default_resize=default_resize,
         )
@@ -214,14 +218,14 @@ class Export(DefaultsMixin, SupportsParent):
         id: str | None = None,
         origin: str | None = None,
         default_action: Action | None = None,
-        default_crop: Crop | None = None,
+        default_crops: tuple[Crop, ...] | None = None,
         default_mask: Action | None = None,
         default_resize: Resize | None = None,
     ) -> None:
         super().__init__(
             parent,
             default_action,
-            default_crop,
+            default_crops,
             default_mask,
             default_resize,
         )
@@ -237,8 +241,8 @@ class Export(DefaultsMixin, SupportsParent):
         return self._path.with_stem(stem)
 
     @property
-    def crop(self) -> Crop | None:
-        return self.default_crop
+    def crops(self) -> tuple[Crop, ...]:
+        return self.default_crops or ()
 
     @property
     def resize(self) -> Resize | None:
@@ -267,14 +271,14 @@ class XCF(DefaultsMixin, SupportsParent):
         parent: SupportsParent,
         path: Path,
         default_action: Action | None = None,
-        default_crop: Crop | None = None,
+        default_crops: tuple[Crop, ...] | None = None,
         default_mask: Action | None = None,
         default_resize: Resize | None = None,
     ) -> None:
         super().__init__(
             parent,
             default_action,
-            default_crop,
+            default_crops,
             default_mask,
             default_resize,
         )
@@ -287,7 +291,7 @@ class XCF(DefaultsMixin, SupportsParent):
         id: str | None = None,
         origin: str | None = None,
         default_action: Action | None = None,
-        default_crop: Crop | None = None,
+        default_crops: tuple[Crop, ...] | None = None,
         default_mask: Action | None = None,
         default_resize: Resize | None = None,
     ) -> Export:
@@ -297,7 +301,7 @@ class XCF(DefaultsMixin, SupportsParent):
             id=id,
             origin=origin,
             default_action=default_action,
-            default_crop=default_crop,
+            default_crops=default_crops,
             default_mask=default_mask,
             default_resize=default_resize,
         )
@@ -312,12 +316,12 @@ class Manifest:
         self,
         database_path: Path,
         default_action: Action = Action.LEAVE,
-        default_crop: Crop | None = None,
+        default_crops: tuple[Crop, ...] | None = None,
         default_mask: Action = Action.LEAVE,
         default_resize: Resize | None = None,
     ) -> None:
         self.database_path = database_path
-        self.default_crop = default_crop
+        self.default_crops = default_crops
         self.default_action = default_action
         self.default_mask = default_mask
         self.default_resize = default_resize
@@ -327,7 +331,7 @@ class Manifest:
         self,
         path: Path,
         default_action: Action | None = None,
-        default_crop: Crop | None = None,
+        default_crops: tuple[Crop, ...] | None = None,
         default_mask: Action | None = None,
         default_resize: Resize | None = None,
     ) -> XCF:
@@ -335,7 +339,7 @@ class Manifest:
             self,
             path,
             default_action=default_action,
-            default_crop=default_crop,
+            default_crops=default_crops,
             default_mask=default_mask,
             default_resize=default_resize,
         )
@@ -404,9 +408,7 @@ def _add_actions_from_model(
             pass
 
 
-def _create_crop_from_model(
-    model: models.CropAlgorithm | str | None,
-) -> Crop | None:
+def _create_crop_from_model(model: models.CropAlgorithm | str) -> Crop:
     match model:
         case models.CropAlgorithm(algorithm=algorithm):
             match algorithm:
@@ -416,6 +418,19 @@ def _create_crop_from_model(
                     return CropLayers()
         case str() as name:
             return CropLayer(name)
+
+
+def _create_crops_from_model(
+    model: Iterable[models.CropAlgorithm | str]
+    | models.CropAlgorithm
+    | str
+    | None,
+) -> tuple[Crop, ...] | None:
+    match model:
+        case models.CropAlgorithm() | str():
+            return (_create_crop_from_model(model),)
+        case Iterable():
+            return tuple(map(_create_crop_from_model, model))
         case None:
             return None
 
@@ -465,7 +480,7 @@ def _add_export_from_model(
         id=export_model.id,
         origin=export_model.origin,
         default_action=_create_action_from_model(export_model.default),
-        default_crop=_create_crop_from_model(export_model.crop),
+        default_crops=_create_crops_from_model(export_model.crop),
         default_resize=_create_resize_from_model(export_model.resize),
     )
 
@@ -515,7 +530,7 @@ def _create_manifest_from_model(
 
     manifest = Manifest(
         root_dir / manifest_model.database,
-        default_crop=_create_crop_from_model(manifest_model.crop),
+        default_crops=_create_crops_from_model(manifest_model.crop),
         default_resize=_create_resize_from_model(manifest_model.resize),
     )
 

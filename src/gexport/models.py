@@ -60,7 +60,12 @@ class Export(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str | SkipJsonSchema[None] = None
     origin: Annotated[str | SkipJsonSchema[None], Field(default=None)]
-    crop: CropAlgorithm | str | SkipJsonSchema[None] = None
+
+    crop: Annotated[
+        list[CropAlgorithm | str] | CropAlgorithm | str | SkipJsonSchema[None],
+        Field(default=None),
+    ]
+
     resize: ScaleFrom | WidthHeight | float | SkipJsonSchema[None] = None
     default: Action | SkipJsonSchema[None] = None
     show: (
@@ -88,7 +93,9 @@ class XCF(BaseModel):
 class Manifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     database: Path
-    crop: CropAlgorithm | str | SkipJsonSchema[None] = None
+    crop: (
+        list[CropAlgorithm | str] | CropAlgorithm | str | SkipJsonSchema[None]
+    ) = None
     resize: ScaleFrom | WidthHeight | float | SkipJsonSchema[None] = None
     xcfs: dict[Path, XCF] | SkipJsonSchema[None] = None
 

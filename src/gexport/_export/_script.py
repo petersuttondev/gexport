@@ -1,16 +1,14 @@
 import graphlib
 from collections.abc import Callable
 from pathlib import Path
-from typing import Final
 
-from rich.console import Console
-
-from gexport._export._crop import crop
+from gexport._export._crop import crop_image
 from gexport._export._gi import Gimp
 from gexport._export._ipc import load_export_request, write_export_response
-from gexport._export._layout import Layout, Offsets, Span
+from gexport._export._layout import Layout, Point, Span
 from gexport._export._save import save_image
 from gexport._export._util import (
+    console,
     open_duplicate,
     open_image,
     rasterize_all_visible_vector_layers,
@@ -26,8 +24,6 @@ from gexport._manifest import (
     load_manifest,
 )
 from gexport.databaselib import open_database
-
-console: Final = Console()
 
 # -- Validation -------------------------------------------------------------- #
 
@@ -62,13 +58,13 @@ def _scale_span(factor: float, length: int, offset: int) -> Span:
 
 def _log_scale(
     scaled_image: Gimp.Image,
-    offsets: Offsets,
+    offset: Point,
     x_factor: float,
     y_factor: float,
 ) -> None:
     w = scaled_image.get_width()
     h = scaled_image.get_height()
-    x, y = offsets
+    x, y = offset
     print(f"Scaled to {w}x{h}+{x}+{y} (x{x_factor}, x{y_factor})")
 
 
@@ -76,12 +72,12 @@ def _scale(
     image: Gimp.Image,
     x_factor: float,
     y_factor: float,
-    offsets: Offsets,
+    offset: Point,
     width: int | None = None,
     height: int | None = None,
-) -> Offsets:
-    x_span = _scale_span(x_factor, image.get_width(), offsets.x)
-    y_span = _scale_span(y_factor, image.get_height(), offsets.y)
+) -> Point:
+    x_span = _scale_span(x_factor, image.get_width(), offset.x)
+    y_span = _scale_span(y_factor, image.get_height(), offset.y)
     # A requested width or height is exact. Spans can be off by one when the
     # scaled offset lands on .5
     if not image.scale(
@@ -89,9 +85,9 @@ def _scale(
         y_span.length if height is None else height,
     ):
         raise RuntimeError("Scale failed")
-    offsets = Offsets(x_span.offset, y_span.offset)
-    _log_scale(image, offsets, x_factor, y_factor)
-    return offsets
+    offset = Point(x_span.offset, y_span.offset)
+    _log_scale(image, offset, x_factor, y_factor)
+    return offset
 
 
 def _create_export(
@@ -128,34 +124,43 @@ def _create_export(
         path = " → ".join(layer_path)
         console.print(f"[{color}]{path}{mask}[/{color}]")
 
+    if export.origin is None:
+        origin = Point(0, 0)
+    else:
+        origin_layer = image.get_layer_by_name(export.origin)
+        assert origin_layer is not None
+        _, x_origin, y_origin = origin_layer.get_offsets()
+        origin = Point(x_origin, y_origin)
+
     # GIMP 3.2.8 mishandles vector layers when cropping and scaling.
     rasterize_all_visible_vector_layers(image)
-    offsets = crop(export, image)
+    offset = crop_image(export, image)
+    offset = Point(offset.x - origin.x, offset.y - origin.y)
     cropped_width = image.get_width()
     cropped_height = image.get_height()
 
     match export.resize:
         case Scale(factor):
             x_factor = y_factor = factor
-            offsets = _scale(image, factor, factor, offsets)
+            offset = _scale(image, factor, factor, offset)
 
         case ScaleFrom(id_):
             x_factor, y_factor = get_scale_factor(id_)
-            offsets = _scale(image, x_factor, y_factor, offsets)
+            offset = _scale(image, x_factor, y_factor, offset)
 
         case WidthHeight(width, height, allow_scale_up):
             assert width is not None or height is not None
             if width is None:
                 assert height is not None
-                x_factor = y_factor = height / image.get_height()
+                x_factor = y_factor = height / cropped_height
             elif height is None:
-                x_factor = y_factor = width / image.get_width()
+                x_factor = y_factor = width / cropped_width
             else:
-                x_factor = width / image.get_width()
-                y_factor = height / image.get_height()
+                x_factor = width / cropped_width
+                y_factor = height / cropped_height
             if (x_factor < 1 and y_factor < 1) or allow_scale_up:
-                offsets = _scale(
-                    image, x_factor, y_factor, offsets, width, height
+                offset = _scale(
+                    image, x_factor, y_factor, offset, width, height
                 )
 
         case None:
@@ -167,8 +172,8 @@ def _create_export(
     layout = Layout(
         width=image.get_width(),
         height=image.get_height(),
-        x_offset=offsets[0],
-        y_offset=offsets[1],
+        x_offset=offset.x,
+        y_offset=offset.y,
         x_scale=image.get_width() / cropped_width,
         y_scale=image.get_height() / cropped_height,
     )

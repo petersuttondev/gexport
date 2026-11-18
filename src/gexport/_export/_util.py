@@ -1,8 +1,13 @@
 from collections.abc import Callable, Generator, Iterable, Sequence
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Final
+
+from rich.console import Console
 
 from gexport._export._gi import Gimp, Gio
+
+console: Final = Console()
 
 
 @contextmanager

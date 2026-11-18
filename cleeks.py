@@ -5,7 +5,6 @@ from cleek import task
 from gexport.cli import make_parser
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
     from pathlib import Path
 
 
@@ -51,23 +50,6 @@ def completion() -> None:
 
 
 # -- Utilities -----------------------------------------------------------------
-
-type _Args = Iterable[_Args] | str
-
-
-def _args_flatten(args: _Args, flat: list[str]) -> None:
-    for arg in args:
-        if isinstance(arg, str):
-            flat.append(arg)
-        else:
-            _args_flatten(arg, flat)
-
-
-def _args(*args: _Args) -> list[str]:
-    flat: list[str] = []
-    _args_flatten(args, flat)
-    return flat
-
 
 _project_dir: Path | None = None
 
