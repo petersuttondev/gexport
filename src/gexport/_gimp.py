@@ -1,4 +1,3 @@
-import json
 import os
 import shlex
 import subprocess
@@ -6,7 +5,9 @@ import sys
 from collections import ChainMap
 from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
-from typing import NoReturn, final, override
+from typing import final, override
+
+from gexport._env import GexportEnv
 
 
 def _make_shell_command(
@@ -31,71 +32,51 @@ class GIMP:
     def __init__(
         self,
         *,
-        batch: str | None = None,
-        dump_path: Path | None = None,
-        results_path: Path | None = None,
-        manifest_path: Path | None = None,
-        substrings: Iterable[str] | None = None,
-        xcf_path: Path | None = None,
+        manifest_path: Path,
+        substrings: Iterable[str] = (),
     ) -> None:
-        self.batch = batch
-        self.dump_path = dump_path
-        self.results_path = results_path
         self.manifest_path = manifest_path
-        self.substrings = substrings
-        self.xcf_path = xcf_path
+        self.substrings = list(substrings)
 
-    def make_args(self) -> list[str]:
-        args = [
+    def make_batch(self) -> str:
+        return ";".join(
+            (
+                "import sys",
+                f"sys.path.extend({sys.path!r})",
+                "from gexport.script import run",
+                "run()",
+            )
+        )
+
+    def make_args(self) -> tuple[str, ...]:
+        return (
             "gimp-console",
             "--new-instance",
             "--no-data",
             "--no-fonts",
             "--no-splash",
-        ]
+            f"--batch={self.make_batch()}",
+            "--batch-interpreter=python-fu-eval",
+            "--quit",
+        )
 
-        if self.batch is None:
-            batch = "\n".join(
-                (
-                    "import sys",
-                    f"sys.path.extend({sys.path!r})",
-                    "from gexport.script import run",
-                    "run()",
-                )
-            )
-            args.append(f"--batch={batch}")
-        args.append("--batch-interpreter=python-fu-eval")
-        args.append("--quit")
-        if self.xcf_path is not None:
-            args.append(str(self.xcf_path))
-        return args
+    def make_gexport_env(self) -> GexportEnv:
+        return GexportEnv(
+            manifest=self.manifest_path,
+            substrings=self.substrings,
+        )
 
-    def make_env_changes(self) -> dict[str, str]:
-        env: dict[str, str] = {}
+    def make_gexport_env_value(self) -> str:
+        return self.make_gexport_env().model_dump_json()
 
-        if self.dump_path is not None:
-            env["GEXPORT_DUMP"] = str(self.dump_path)
-
-        if self.results_path is not None:
-            env["GEXPORT_RESULTS"] = str(self.results_path)
-
-        if self.manifest_path is not None:
-            env["GEXPORT_MANIFEST"] = str(self.manifest_path)
-
-        if self.substrings:
-            env["GEXPORT_SUBSTRINGS"] = json.dumps(self.substrings)
-
-        return env
+    def make_env_additions(self) -> dict[str, str]:
+        return {"GEXPORT_ENV": self.make_gexport_env_value()}
 
     def make_env(self) -> ChainMap[str, str]:
-        return ChainMap(self.make_env_changes(), os.environ)
+        return ChainMap(self.make_env_additions(), os.environ)
 
     def make_shell_command(self) -> str:
-        return _make_shell_command(self.make_args(), self.make_env_changes())
+        return _make_shell_command(self.make_args(), self.make_env_additions())
 
-    def exec(self) -> NoReturn:
-        args = self.make_args()
-        os.execvpe(args[0], args, self.make_env())
-
-    def run(self) -> subprocess.CompletedProcess[bytes]:
-        return subprocess.run(self.make_args(), env=self.make_env(), check=True)
+    def run(self) -> None:
+        subprocess.run(self.make_args(), env=self.make_env(), check=True)

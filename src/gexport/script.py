@@ -1,12 +1,13 @@
 import graphlib
-import json
 import os
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final, NamedTuple, cast, final
+from typing import Final, NamedTuple, final
 
 import gi
+
+from gexport._env import GexportEnv
 
 gi.require_version("Gimp", "3.0")
 from gi.repository import Gimp, Gio  # pyright: ignore[reportMissingModuleSource]
@@ -362,16 +363,9 @@ def _create_export(
 
 
 def run() -> None:
-    manifest_path = Path(os.environ["GEXPORT_MANIFEST"])
-    manifest = load_manifest(Path(manifest_path))
-
-    if "GEXPORT_SUBSTRINGS" in os.environ:
-        json_substrings = cast(
-            list[str], json.loads(os.environ["GEXPORT_SUBSTRINGS"])
-        )
-        substrings = tuple(json_substrings)
-    else:
-        substrings = ()
+    env = GexportEnv.model_validate_json(os.environ["GEXPORT_ENV"])
+    manifest = load_manifest(env.manifest)
+    substrings = env.substrings
 
     if substrings:
 
@@ -384,8 +378,6 @@ def run() -> None:
         def should_export(path: Path) -> bool:
             del path
             return True
-
-    export_paths: list[str] = []
 
     with open_database(manifest.database_path) as db:
 
@@ -407,7 +399,6 @@ def run() -> None:
                     if should_export(export.path):
                         validate(export, image)
                         print("Exporting", export.path)
-                        export_paths.append(str(export.path))
                         with open_image_duplicate(image) as duplicate:
                             layout = _create_export(
                                 duplicate, export, get_scale
@@ -422,9 +413,3 @@ def run() -> None:
                                 layout.y_scale,
                             )
                         print()
-
-    results_path = os.environ.get("GEXPORT_RESULTS")
-
-    if results_path is not None:
-        with open(results_path, "w") as results_file:
-            json.dump(export_paths, results_file)
