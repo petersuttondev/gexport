@@ -59,12 +59,16 @@ def _get_crop_region(image: Gimp.Image, crop: Crop) -> Region:
 
 
 def _crop_image(image: Gimp.Image, crop: Crop) -> Point:
-    region = _get_crop_region(image, crop).intersect(
-        Region(0, 0, image.get_width(), image.get_height()),
-    )
-    if not image.crop(region.w, region.h, region.x, region.y):
+    region = Region(0, 0, image.get_width(), image.get_height())
+    crop_region = _get_crop_region(image, crop).intersect(region)
+    if not image.crop(
+        crop_region.w,
+        crop_region.h,
+        crop_region.x,
+        crop_region.y,
+    ):
         raise RuntimeError("Crop failed")
-    return Point(region.x, region.y)
+    return Point(crop_region.x, crop_region.y)
 
 
 def _log_crop(image: Gimp.Image, crop: Crop, offset: Point) -> None:

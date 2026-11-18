@@ -35,10 +35,9 @@ class Group(BaseModel):
     leave: list[Group | Layer | str] | Group | Layer | str | None = None
 
 
-@final
-class CropAlgorithm(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    algorithm: Literal["content", "layers"]
+type CropName = Literal["<content>", "<layers>"] | str
+
+type CropType = list[CropName] | CropName | SkipJsonSchema[None]
 
 
 @final
@@ -60,12 +59,7 @@ class Export(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str | SkipJsonSchema[None] = None
     origin: Annotated[str | SkipJsonSchema[None], Field(default=None)]
-
-    crop: Annotated[
-        list[CropAlgorithm | str] | CropAlgorithm | str | SkipJsonSchema[None],
-        Field(default=None),
-    ]
-
+    crop: Annotated[CropType, Field(default=None)]
     resize: ScaleFrom | WidthHeight | float | SkipJsonSchema[None] = None
     default: Action | SkipJsonSchema[None] = None
     show: (
@@ -93,9 +87,7 @@ class XCF(BaseModel):
 class Manifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     database: Path
-    crop: (
-        list[CropAlgorithm | str] | CropAlgorithm | str | SkipJsonSchema[None]
-    ) = None
+    crop: Annotated[CropType, Field(default=None)]
     resize: ScaleFrom | WidthHeight | float | SkipJsonSchema[None] = None
     xcfs: dict[Path, XCF] | SkipJsonSchema[None] = None
 

@@ -408,26 +408,21 @@ def _add_actions_from_model(
             pass
 
 
-def _create_crop_from_model(model: models.CropAlgorithm | str) -> Crop:
+def _create_crop_from_model(model: str) -> Crop:
     match model:
-        case models.CropAlgorithm(algorithm=algorithm):
-            match algorithm:
-                case "content":
-                    return CropContent()
-                case "layers":
-                    return CropLayers()
+        case "<content>":
+            return CropContent()
+        case "<layers>":
+            return CropLayers()
         case str() as name:
             return CropLayer(name)
 
 
 def _create_crops_from_model(
-    model: Iterable[models.CropAlgorithm | str]
-    | models.CropAlgorithm
-    | str
-    | None,
+    model: Iterable[str] | str | None,
 ) -> tuple[Crop, ...] | None:
     match model:
-        case models.CropAlgorithm() | str():
+        case str():
             return (_create_crop_from_model(model),)
         case Iterable():
             return tuple(map(_create_crop_from_model, model))
