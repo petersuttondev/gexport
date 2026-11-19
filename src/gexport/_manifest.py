@@ -541,6 +541,8 @@ def load_manifest(path: Path) -> Manifest:
     export_ids: set[str] = set()
     for xcf in manifest.xcfs.values():
         for export in xcf.exports.values():
+            if export.path.stem.startswith('<template>'):
+                continue
             if export.id is not None:
                 if export.id in export_ids:
                     raise ValueError(f"Duplicate export ID {export.id!r}")
