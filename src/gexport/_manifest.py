@@ -505,7 +505,12 @@ def _add_xcf_from_model(
     match exports_model:
         case dict():
             for export_path, export_model in exports_model.items():
-                _add_export_from_model(root_dir, xcf, export_path, export_model)
+                if export_model is None:
+                    add_export_from_path(export_path)
+                else:
+                    _add_export_from_model(
+                        root_dir, xcf, export_path, export_model
+                    )
         case list():
             for export_path in exports_model:
                 add_export_from_path(export_path)
@@ -541,7 +546,7 @@ def load_manifest(path: Path) -> Manifest:
     export_ids: set[str] = set()
     for xcf in manifest.xcfs.values():
         for export in xcf.exports.values():
-            if export.path.stem.startswith('<template>'):
+            if export.path.stem.startswith("<template>"):
                 continue
             if export.id is not None:
                 if export.id in export_ids:

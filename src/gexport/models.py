@@ -25,19 +25,24 @@ class Layer(BaseModel):
     mask: Action | SkipJsonSchema[None] = None
 
 
+type VisibilityField = (
+    list[Group | Layer | str] | Group | Layer | str | SkipJsonSchema[None]
+)
+
+
 @final
 class Group(BaseModel):
     model_config = ConfigDict(extra="forbid")
     group: str
     default: Action | SkipJsonSchema[None] = None
-    show: list[Group | Layer | str] | Group | Layer | str | None = None
-    hide: list[Group | Layer | str] | Group | Layer | str | None = None
-    leave: list[Group | Layer | str] | Group | Layer | str | None = None
+    show: VisibilityField = None
+    hide: VisibilityField = None
+    leave: VisibilityField = None
 
 
-type CropName = Literal["<content>", "<layers>"] | str
+type Crop = Literal["<content>", "<layers>"] | str
 
-type CropType = list[CropName] | CropName | SkipJsonSchema[None]
+type CropField = list[Crop] | Crop | SkipJsonSchema[None]
 
 
 @final
@@ -54,41 +59,38 @@ class WidthHeight(BaseModel):
     allow_scale_up: bool | SkipJsonSchema[None] = None
 
 
+type ResizeField = ScaleFrom | WidthHeight | float | SkipJsonSchema[None]
+
+
 @final
 class Export(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str | SkipJsonSchema[None] = None
     origin: Annotated[str | SkipJsonSchema[None], Field(default=None)]
-    crop: Annotated[CropType, Field(default=None)]
-    resize: ScaleFrom | WidthHeight | float | SkipJsonSchema[None] = None
+    crop: CropField = None
+    resize: ResizeField = None
     default: Action | SkipJsonSchema[None] = None
-    show: (
-        list[Group | Layer | str] | Group | Layer | str | SkipJsonSchema[None]
-    ) = None
-    hide: (
-        list[Group | Layer | str] | Group | Layer | str | SkipJsonSchema[None]
-    ) = None
-    leave: (
-        list[Group | Layer | str] | Group | Layer | str | SkipJsonSchema[None]
-    ) = None
+    show: VisibilityField = None
+    hide: VisibilityField = None
+    leave: VisibilityField = None
 
 
 @final
 class XCF(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    exports: (
+        dict[Path, Export | None] | list[Path] | Path | SkipJsonSchema[None]
+    ) = None
+    resize: ResizeField = None
     default: Action | SkipJsonSchema[None] = None
-    exports: dict[Path, Export] | list[Path] | Path | SkipJsonSchema[None] = (
-        None
-    )
-    resize: ScaleFrom | WidthHeight | float | SkipJsonSchema[None] = None
 
 
 @final
 class Manifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     database: Path
-    crop: Annotated[CropType, Field(default=None)]
-    resize: ScaleFrom | WidthHeight | float | SkipJsonSchema[None] = None
+    crop: CropField = None
+    resize: ResizeField = None
     xcfs: dict[Path, XCF] | SkipJsonSchema[None] = None
 
 
