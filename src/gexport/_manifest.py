@@ -464,12 +464,18 @@ def _expand_export_path(
     )
 
 
+def _is_export_template(export_path: Path) -> bool:
+    parts = export_path.parts
+    return bool(parts) and parts[0].startswith("<template>")
+
+
 def _add_export_from_model(
     root_dir: Path,
     xcf: XCF,
     export_path: Path,
     export_model: models.Export,
 ) -> Export:
+    assert not _is_export_template(export_path)
     export = xcf.add_export(
         _expand_export_path(root_dir, xcf.path, export_path),
         id=export_model.id,
@@ -478,7 +484,6 @@ def _add_export_from_model(
         default_crops=_create_crops_from_model(export_model.crop),
         default_resize=_create_resize_from_model(export_model.resize),
     )
-
     _add_actions_from_model(export.root, export_model.show, Action.SHOW)
     _add_actions_from_model(export.root, export_model.hide, Action.HIDE)
     _add_actions_from_model(export.root, export_model.leave, Action.LEAVE)
@@ -500,14 +505,15 @@ def _add_xcf_from_model(
     exports_model = xcf_model.exports
 
     def add_export_from_path(export_path: Path) -> None:
-        xcf.add_export(_expand_export_path(root_dir, xcf.path, export_path))
+        if not _is_export_template(export_path):
+            xcf.add_export(_expand_export_path(root_dir, xcf.path, export_path))
 
     match exports_model:
         case dict():
             for export_path, export_model in exports_model.items():
                 if export_model is None:
                     add_export_from_path(export_path)
-                else:
+                elif not _is_export_template(export_path):
                     _add_export_from_model(
                         root_dir, xcf, export_path, export_model
                     )
@@ -546,8 +552,6 @@ def load_manifest(path: Path) -> Manifest:
     export_ids: set[str] = set()
     for xcf in manifest.xcfs.values():
         for export in xcf.exports.values():
-            if export.path.stem.startswith("<template>"):
-                continue
             if export.id is not None:
                 if export.id in export_ids:
                     raise ValueError(f"Duplicate export ID {export.id!r}")

@@ -1,11 +1,10 @@
 # pyright: reportUninitializedInstanceVariable=false
 from enum import Enum, unique
 from pathlib import Path
-from typing import Annotated, Literal, final
+from typing import Literal, final
 
 import yaml
 from pydantic.config import ConfigDict
-from pydantic.fields import Field
 from pydantic.json_schema import SkipJsonSchema
 from pydantic.main import BaseModel
 
@@ -66,7 +65,7 @@ type ResizeField = ScaleFrom | WidthHeight | float | SkipJsonSchema[None]
 class Export(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str | SkipJsonSchema[None] = None
-    origin: Annotated[str | SkipJsonSchema[None], Field(default=None)]
+    origin: str | SkipJsonSchema[None] = None
     crop: CropField = None
     resize: ResizeField = None
     default: Action | SkipJsonSchema[None] = None
@@ -78,11 +77,11 @@ class Export(BaseModel):
 @final
 class XCF(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    resize: ResizeField = None
+    default: Action | SkipJsonSchema[None] = None
     exports: (
         dict[Path, Export | None] | list[Path] | Path | SkipJsonSchema[None]
     ) = None
-    resize: ResizeField = None
-    default: Action | SkipJsonSchema[None] = None
 
 
 @final
@@ -96,4 +95,4 @@ class Manifest(BaseModel):
 
 def load_manifest(path: Path) -> Manifest:
     with open(path) as manifest_file:
-        return Manifest(**yaml.safe_load(manifest_file))  # pyright: ignore[reportAny]
+        return Manifest.model_validate(yaml.safe_load(manifest_file))
